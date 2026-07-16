@@ -1,0 +1,67 @@
+{
+  "id": "billing.invoice_proforma",
+  "version": "1",
+  "engine": "jinja-html",
+  "supported_formats": ["pdf"],
+  "entrypoint": "template.html",
+  "output_basename": "proforma",
+  "required_fields": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "required": ["invoice", "seller", "buyer", "lines"],
+    "properties": {
+      "invoice": {
+        "type": "object",
+        "required": ["currency", "subtotal", "vat_amount", "total"],
+        "properties": {
+          "number": { "type": ["string", "null"] },
+          "type": { "type": "integer" },
+          "issue_date": { "type": ["string", "null"] },
+          "due_date": { "type": ["string", "null"] },
+          "currency": { "type": "string" },
+          "subtotal": { "type": "string" },
+          "vat_rate": { "type": "string" },
+          "vat_amount": { "type": "string" },
+          "total": { "type": "string" },
+          "structured_comm": { "type": ["string", "null"] }
+        }
+      },
+      "seller": {
+        "type": "object",
+        "required": ["legal_name", "iban"],
+        "properties": {
+          "legal_name": { "type": ["string", "null"] },
+          "vat_number": { "type": ["string", "null"] },
+          "iban": { "type": ["string", "null"] },
+          "account_holder_name": { "type": ["string", "null"] },
+          "address": { "type": ["string", "null"] }
+        }
+      },
+      "buyer": {
+        "type": "object",
+        "properties": {
+          "name": { "type": ["string", "null"] },
+          "vat_number": { "type": ["string", "null"] },
+          "email": { "type": ["string", "null"] },
+          "address": { "type": ["string", "null"] }
+        }
+      },
+      "lines": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["ean", "quantity_kwh", "unit_price", "amount"],
+          "properties": {
+            "ean": { "type": "string" },
+            "description": { "type": ["string", "null"] },
+            "quantity_kwh": { "type": "string" },
+            "unit_price": { "type": "string" },
+            "amount": { "type": "string" }
+          }
+        }
+      },
+      "legal_mentions": { "type": "array", "items": { "type": "string" } },
+      "locale": { "type": "string" }
+    }
+  }
+}

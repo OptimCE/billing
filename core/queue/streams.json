@@ -1,0 +1,26 @@
+[
+  {
+    "name": "BILLING",
+    "subjects": [
+      "optimce.billing.run.requested",
+      "optimce.billing.invoice.issue.requested"
+    ],
+    "retention": "work_queue",
+    "storage": "file"
+  },
+  {
+    "name": "BILLING_EVENTS",
+    "subjects": [
+      "optimce.billing.run.completed",
+      "optimce.billing.invoice.rendered"
+    ],
+    "retention": "limits",
+    "storage": "file"
+  },
+  {
+    "name": "BILLING_DLQ",
+    "subjects": ["optimce.billing.dlq.>"],
+    "retention": "limits",
+    "storage": "file"
+  }
+]

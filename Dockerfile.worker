@@ -1,0 +1,54 @@
+# ---------- stage 1: build ----------
+FROM python:3.12-slim AS builder
+
+WORKDIR /build
+COPY requirements/base.txt   requirements/base.txt
+COPY requirements/worker.txt requirements/worker.txt
+
+RUN pip install --no-cache-dir --prefix=/install -r requirements/worker.txt
+
+# ---------- stage 2: runtime ----------
+FROM python:3.12-slim
+
+# tini gives us a real PID 1: forwards SIGTERM to the Python process and
+# reaps any zombies on shutdown.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends tini \
+    && rm -rf /var/lib/apt/lists/*
+
+# Security: non-root user
+RUN groupadd -r app && useradd -r -g app -d /app -s /sbin/nologin app
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+# Copy only installed packages from builder
+COPY --from=builder /install /usr/local
+
+# Copy application code. The worker imports api/ (repository + docgen payload
+# builder), so it is included alongside the domain/infra packages. No main.py —
+# the worker has its own entrypoint. Set REGULATORS_CONFIG_PATH to a mounted
+# reference/regulators.json (outside this build context) for the parity check.
+COPY core/    core/
+COPY api/     api/
+COPY shared/  shared/
+COPY worker/  worker/
+COPY regime/  regime/
+COPY ports/   ports/
+COPY utils/   utils/
+COPY locales/ locales/
+
+# Own everything by app user
+RUN chown -R app:app /app
+USER app
+
+# Liveness: worker.main's queue-depth poller touches /tmp/worker.alive
+# every ~15s while NATS is reachable. ~3 missed polls = unhealthy.
+# start-period covers the bounded NATS connect retry window plus subscription setup.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=600s --retries=3 \
+    CMD python -c "import os, time, sys; sys.exit(0 if time.time() - os.path.getmtime('/tmp/worker.alive') < 60 else 1)"
+
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["python", "-m", "worker.main"]

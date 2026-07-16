@@ -1,0 +1,9 @@
+-r base.txt
+
+# Numerical + optimisation stack used by algorithm implementations.
+# Only required by the worker process — the API does not import these.
+numpy==1.26.4
+pandas==2.2.3
+
+# Excel parsing for the shared data loader.
+openpyxl==3.1.5

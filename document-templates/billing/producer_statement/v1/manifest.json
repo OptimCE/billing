@@ -1,0 +1,39 @@
+{
+  "id": "billing.producer_statement",
+  "version": "1",
+  "engine": "jinja-html",
+  "supported_formats": ["pdf"],
+  "entrypoint": "template.html",
+  "output_basename": "producer_statement",
+  "required_fields": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "required": ["invoice", "seller", "buyer", "lines"],
+    "properties": {
+      "invoice": {
+        "type": "object",
+        "required": ["number", "issue_date", "currency", "subtotal", "total"],
+        "properties": {
+          "number": { "type": "string" },
+          "issue_date": { "type": "string" },
+          "currency": { "type": "string" },
+          "subtotal": { "type": "string" },
+          "vat_rate": { "type": "string" },
+          "vat_amount": { "type": "string" },
+          "total": { "type": "string" }
+        }
+      },
+      "seller": { "type": "object", "properties": { "legal_name": { "type": ["string", "null"] } } },
+      "buyer": {
+        "type": "object",
+        "properties": {
+          "name": { "type": ["string", "null"] },
+          "iban": { "type": ["string", "null"] },
+          "address": { "type": ["string", "null"] }
+        }
+      },
+      "lines": { "type": "array" },
+      "legal_mentions": { "type": "array", "items": { "type": "string" } }
+    }
+  }
+}

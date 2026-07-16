@@ -1,0 +1,40 @@
+{
+  "ERRORS": {
+    "AUTH": {
+      "UNAUTHORIZED": "Authentication required (code: 1)",
+      "FORBIDDEN": "Access denied (code: 2)",
+      "RATE_LIMITED": "Too many requests, please try again later (code: 3)",
+      "AUTHORIZATION_MISSING": "Missing authorization header (code: 4)"
+    },
+    "SUBSCRIPTION": {
+      "NOT_SUBSCRIBED": "You are not subscribed to this service (code: 1003)"
+    },
+    "BILLING": {
+      "GET_TARIFFS": "Failed to retrieve tariffs (code: 2200)",
+      "TARIFF_NOT_FOUND": "No applicable tariff found for the period (code: 2201)",
+      "CREATE_TARIFF": "Failed to create the tariff (code: 2202)",
+      "DELETE_TARIFF": "Failed to delete the tariff (code: 2203)",
+      "INVALID_TARIFF": "Invalid tariff definition (code: 2204)",
+      "GET_BILLING_RUNS": "Failed to retrieve billing runs (code: 2210)",
+      "BILLING_RUN_NOT_FOUND": "Billing run not found (code: 2211)",
+      "RUN_ALREADY_EXISTS": "A billing run already exists for this operation and period (code: 2212)",
+      "NO_CONSUMPTION_DATA": "No settlement data found for the operation and period (code: 2213)",
+      "COMMUNITY_BILLING_INFO_INCOMPLETE": "The community is missing billing information (IBAN or legal name) (code: 2214)",
+      "DOUBLE_IMPORT_DETECTED": "Duplicate settlement rows detected; re-import the settlement before billing (code: 2215)",
+      "START_BILLING_RUN": "Failed to start the billing run (code: 2216)",
+      "GET_INVOICES": "Failed to retrieve invoices (code: 2220)",
+      "INVOICE_NOT_FOUND": "Invoice not found (code: 2221)",
+      "INVOICE_NOT_DRAFT": "The invoice is not a draft and cannot be modified (code: 2222)",
+      "INVOICE_NOT_ISSUED": "The invoice has not been issued (code: 2223)",
+      "NO_BILLING_EMAIL": "No billing email address is available for this participant (code: 2224)",
+      "NUMBERING_FAILED": "Failed to assign an invoice number (code: 2225)",
+      "ISSUE_INVOICE": "Failed to issue the invoice (code: 2226)",
+      "INVOICE_PDF_NOT_READY": "The invoice PDF is not ready yet (code: 2227)",
+      "INVOICE_NOT_RENDERABLE": "This invoice cannot be rendered as a PDF (code: 2228)",
+      "INVOICE_PDF_DELETE_FORBIDDEN": "The PDF cannot be deleted once the invoice has been sent (code: 2229)",
+      "CREDIT_NOTE_TARGET_INVALID": "The invoice cannot be credited (code: 2240)",
+      "REGISTER_PAYMENT": "Failed to register the payment (code: 2241)",
+      "REGIME_NOT_CONFIGURED": "No billing regime is configured for this community's regulator (code: 2250)"
+    }
+  }
+}

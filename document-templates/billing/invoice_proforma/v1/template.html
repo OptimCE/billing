@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="{{ (locale or 'fr-BE')[:2] }}">
+<head>
+  <meta charset="utf-8" />
+  <title>Proforma {{ data.invoice.number or "" }}</title>
+  <style>
+    @page { size: A4; margin: 20mm 18mm; }
+    * { box-sizing: border-box; }
+    body { font-family: "Helvetica Neue", Arial, sans-serif; color: #1a1a1a; font-size: 11px; line-height: 1.45; }
+    h1 { font-size: 22px; margin: 0 0 2px; letter-spacing: 0.5px; }
+    .muted { color: #666; }
+    /* Diagonal, low-opacity watermark printed behind the content on every page. */
+    .watermark { position: fixed; top: 42%; left: 0; width: 100%; text-align: center;
+      transform: rotate(-30deg); transform-origin: center; z-index: 0;
+      font-size: 96px; font-weight: 800; letter-spacing: 6px;
+      color: rgba(200, 40, 40, 0.12); text-transform: uppercase; }
+    .content { position: relative; z-index: 1; }
+    .provisional { margin: 0 0 16px; padding: 8px 12px; border: 1px solid #c82828;
+      border-radius: 6px; background: #fdecec; color: #8a1c1c; font-size: 10px; font-weight: 600; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #1a1a1a; padding-bottom: 12px; margin-bottom: 18px; }
+    .doc-meta { text-align: right; }
+    .doc-meta .num { font-size: 15px; font-weight: 700; }
+    .parties { display: flex; justify-content: space-between; gap: 24px; margin-bottom: 18px; }
+    .party { width: 48%; }
+    .party h2 { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #888; margin: 0 0 4px; }
+    .party .name { font-weight: 700; font-size: 12px; }
+    table.lines { width: 100%; border-collapse: collapse; margin: 6px 0 14px; }
+    table.lines th { text-align: left; font-size: 9px; text-transform: uppercase; letter-spacing: 0.6px; color: #888; border-bottom: 1px solid #ccc; padding: 6px 6px; }
+    table.lines td { padding: 7px 6px; border-bottom: 1px solid #eee; vertical-align: top; }
+    td.num, th.num { text-align: right; white-space: nowrap; }
+    .totals { width: 46%; margin-left: auto; }
+    .totals td { padding: 5px 6px; }
+    .totals .grand td { border-top: 2px solid #1a1a1a; font-weight: 700; font-size: 13px; }
+    .pay { margin-top: 18px; padding: 12px 14px; background: #f5f6f8; border-radius: 6px; }
+    .legal { margin-top: 20px; font-size: 8.5px; color: #777; }
+    .legal p { margin: 2px 0; }
+  </style>
+</head>
+<body>
+  <div class="watermark">Proforma</div>
+  <div class="content">
+    <div class="provisional">
+      DOCUMENT PROVISOIRE (PROFORMA) — sans valeur légale ni fiscale. Ne constitue pas une
+      demande de paiement. La facture définitive et numérotée sera émise ultérieurement.
+    </div>
+
+    <div class="header">
+      <div>
+        <h1>{{ data.seller.legal_name or "Communauté d'énergie" }}</h1>
+        <div class="muted">
+          {% if data.seller.address %}{{ data.seller.address }}<br />{% endif %}
+          {% if data.seller.vat_number %}TVA {{ data.seller.vat_number }}{% endif %}
+        </div>
+      </div>
+      <div class="doc-meta">
+        <div class="num">PROFORMA</div>
+        <div class="num">{{ data.invoice.number or "Document provisoire" }}</div>
+        {% if data.invoice.issue_date %}<div class="muted">Date : {{ data.invoice.issue_date }}</div>{% endif %}
+      </div>
+    </div>
+
+    <div class="parties">
+      <div class="party">
+        <h2>Émetteur (représentant du partage)</h2>
+        <div class="name">{{ data.seller.legal_name }}</div>
+        {% if data.seller.address %}<div>{{ data.seller.address }}</div>{% endif %}
+        {% if data.seller.vat_number %}<div class="muted">TVA {{ data.seller.vat_number }}</div>{% endif %}
+      </div>
+      <div class="party">
+        <h2>Destinataire</h2>
+        <div class="name">{{ data.buyer.name or "—" }}</div>
+        {% if data.buyer.address %}<div>{{ data.buyer.address }}</div>{% endif %}
+        {% if data.buyer.vat_number %}<div class="muted">TVA {{ data.buyer.vat_number }}</div>{% endif %}
+        {% if data.buyer.email %}<div class="muted">{{ data.buyer.email }}</div>{% endif %}
+      </div>
+    </div>
+
+    <table class="lines">
+      <thead>
+        <tr>
+          <th>Description</th>
+          <th>EAN</th>
+          <th class="num">Quantité (kWh)</th>
+          <th class="num">Prix unitaire</th>
+          <th class="num">Montant ({{ data.invoice.currency }})</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for line in data.lines %}
+        <tr>
+          <td>{{ line.description or "Énergie partagée" }}</td>
+          <td>{{ line.ean }}</td>
+          <td class="num">{{ line.quantity_kwh }}</td>
+          <td class="num">{{ line.unit_price }}</td>
+          <td class="num">{{ line.amount }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <table class="totals">
+      <tr>
+        <td>Total HTVA</td>
+        <td class="num">{{ data.invoice.subtotal }} {{ data.invoice.currency }}</td>
+      </tr>
+      <tr>
+        <td>TVA ({{ (data.invoice.vat_rate | float * 100) | round(0, 'floor') | int }} %)</td>
+        <td class="num">{{ data.invoice.vat_amount }} {{ data.invoice.currency }}</td>
+      </tr>
+      <tr class="grand">
+        <td>Total estimé</td>
+        <td class="num">{{ data.invoice.total }} {{ data.invoice.currency }}</td>
+      </tr>
+    </table>
+
+    <div class="pay">
+      <strong>Estimation</strong> — montants provisoires calculés sur la répartition en cours.
+      Aucun paiement n'est dû sur base de ce document ; une communication structurée sera
+      attribuée sur la facture définitive.
+    </div>
+
+    {% if data.legal_mentions %}
+    <div class="legal">
+      {% for mention in data.legal_mentions %}<p>{{ mention }}</p>{% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</body>
+</html>

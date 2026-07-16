@@ -1,0 +1,40 @@
+{
+  "ERRORS": {
+    "AUTH": {
+      "UNAUTHORIZED": "Authentifizierung erforderlich (Code: 1)",
+      "FORBIDDEN": "Zugriff verweigert (Code: 2)",
+      "RATE_LIMITED": "Zu viele Anfragen, bitte später erneut versuchen (Code: 3)",
+      "AUTHORIZATION_MISSING": "Autorisierungs-Header fehlt (Code: 4)"
+    },
+    "SUBSCRIPTION": {
+      "NOT_SUBSCRIBED": "Sie sind nicht für diesen Dienst angemeldet (Code: 1003)"
+    },
+    "BILLING": {
+      "GET_TARIFFS": "Tarife konnten nicht abgerufen werden (Code: 2200)",
+      "TARIFF_NOT_FOUND": "Kein anwendbarer Tarif für den Zeitraum gefunden (Code: 2201)",
+      "CREATE_TARIFF": "Tarif konnte nicht erstellt werden (Code: 2202)",
+      "DELETE_TARIFF": "Tarif konnte nicht gelöscht werden (Code: 2203)",
+      "INVALID_TARIFF": "Ungültige Tarifdefinition (Code: 2204)",
+      "GET_BILLING_RUNS": "Abrechnungsläufe konnten nicht abgerufen werden (Code: 2210)",
+      "BILLING_RUN_NOT_FOUND": "Abrechnungslauf nicht gefunden (Code: 2211)",
+      "RUN_ALREADY_EXISTS": "Für diesen Vorgang und Zeitraum existiert bereits ein Abrechnungslauf (Code: 2212)",
+      "NO_CONSUMPTION_DATA": "Keine Abrechnungsdaten für den Vorgang und Zeitraum gefunden (Code: 2213)",
+      "COMMUNITY_BILLING_INFO_INCOMPLETE": "Der Gemeinschaft fehlen Abrechnungsinformationen (IBAN oder rechtlicher Name) (Code: 2214)",
+      "DOUBLE_IMPORT_DETECTED": "Doppelte Abrechnungszeilen erkannt; importieren Sie die Abrechnung vor der Fakturierung erneut (Code: 2215)",
+      "START_BILLING_RUN": "Abrechnungslauf konnte nicht gestartet werden (Code: 2216)",
+      "GET_INVOICES": "Rechnungen konnten nicht abgerufen werden (Code: 2220)",
+      "INVOICE_NOT_FOUND": "Rechnung nicht gefunden (Code: 2221)",
+      "INVOICE_NOT_DRAFT": "Die Rechnung ist kein Entwurf und kann nicht geändert werden (Code: 2222)",
+      "INVOICE_NOT_ISSUED": "Die Rechnung wurde nicht ausgestellt (Code: 2223)",
+      "NO_BILLING_EMAIL": "Für diesen Teilnehmer ist keine Rechnungs-E-Mail-Adresse verfügbar (Code: 2224)",
+      "NUMBERING_FAILED": "Zuweisung einer Rechnungsnummer fehlgeschlagen (Code: 2225)",
+      "ISSUE_INVOICE": "Ausstellung der Rechnung fehlgeschlagen (Code: 2226)",
+      "INVOICE_PDF_NOT_READY": "Das Rechnungs-PDF ist noch nicht bereit (Code: 2227)",
+      "INVOICE_NOT_RENDERABLE": "Diese Rechnung kann nicht als PDF erzeugt werden (Code: 2228)",
+      "INVOICE_PDF_DELETE_FORBIDDEN": "Das PDF kann nicht mehr gelöscht werden, sobald die Rechnung versendet wurde (Code: 2229)",
+      "CREDIT_NOTE_TARGET_INVALID": "Für die Rechnung kann keine Gutschrift erstellt werden (Code: 2240)",
+      "REGISTER_PAYMENT": "Zahlung konnte nicht erfasst werden (Code: 2241)",
+      "REGIME_NOT_CONFIGURED": "Für den Regulator dieser Gemeinschaft ist kein Abrechnungsregime konfiguriert (Code: 2250)"
+    }
+  }
+}

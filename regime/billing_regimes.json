@@ -1,0 +1,29 @@
+{
+  "BE-WAL-CWAPE": {
+    "vat_rate": "0.21",
+    "due_days": 30,
+    "number_format": "{prefix}-{year}-{seq:05d}",
+    "series_prefixes": {
+      "INVOICE": "F",
+      "CREDIT_NOTE": "NC",
+      "PRODUCER_STATEMENT": "DP"
+    },
+    "producer_mode": "PRODUCER_STATEMENT",
+    "billable_measures": {
+      "consumer": ["SHARED"],
+      "producer": ["INJ_SHARED"]
+    },
+    "legal_mentions": {
+      "fr-BE": [
+        "Facture émise par le représentant du partage au titre du partage d'énergie (Région wallonne, CWaPE).",
+        "Énergie partagée uniquement — hors frais de réseau et taxes.",
+        "Taux et régime de TVA à confirmer par le conseiller fiscal (placeholder)."
+      ],
+      "nl-BE": [
+        "Factuur uitgereikt door de vertegenwoordiger van de deling in het kader van energiedeling (Waals Gewest, CWaPE).",
+        "Uitsluitend gedeelde energie — exclusief netkosten en belastingen.",
+        "Btw-tarief en -regime te bevestigen door de fiscaal adviseur (placeholder)."
+      ]
+    }
+  }
+}

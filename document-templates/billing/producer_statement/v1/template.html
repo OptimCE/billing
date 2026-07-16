@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="{{ (locale or 'fr-BE')[:2] }}">
+<head>
+  <meta charset="utf-8" />
+  <title>Décompte {{ data.invoice.number }}</title>
+  <style>
+    @page { size: A4; margin: 20mm 18mm; }
+    * { box-sizing: border-box; }
+    body { font-family: "Helvetica Neue", Arial, sans-serif; color: #1a1a1a; font-size: 11px; line-height: 1.45; }
+    h1 { font-size: 22px; margin: 0 0 2px; letter-spacing: 0.5px; }
+    .muted { color: #666; }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #146c43; padding-bottom: 12px; margin-bottom: 18px; }
+    .doc-meta { text-align: right; }
+    .doc-meta .num { font-size: 15px; font-weight: 700; color: #146c43; }
+    .parties { display: flex; justify-content: space-between; gap: 24px; margin-bottom: 18px; }
+    .party { width: 48%; }
+    .party h2 { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #888; margin: 0 0 4px; }
+    .party .name { font-weight: 700; font-size: 12px; }
+    table.lines { width: 100%; border-collapse: collapse; margin: 6px 0 14px; }
+    table.lines th { text-align: left; font-size: 9px; text-transform: uppercase; letter-spacing: 0.6px; color: #888; border-bottom: 1px solid #ccc; padding: 6px; }
+    table.lines td { padding: 7px 6px; border-bottom: 1px solid #eee; }
+    td.num, th.num { text-align: right; white-space: nowrap; }
+    .totals { width: 46%; margin-left: auto; }
+    .totals td { padding: 5px 6px; }
+    .totals .grand td { border-top: 2px solid #146c43; font-weight: 700; font-size: 13px; }
+    .pay { margin-top: 18px; padding: 12px 14px; background: #eaf5ee; border-radius: 6px; }
+    .legal { margin-top: 20px; font-size: 8.5px; color: #777; }
+    .legal p { margin: 2px 0; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <h1>{{ data.seller.legal_name or "Communauté d'énergie" }}</h1>
+      <div class="muted">Représentant du partage</div>
+    </div>
+    <div class="doc-meta">
+      <div class="num">DÉCOMPTE DE RÉMUNÉRATION</div>
+      <div class="num">{{ data.invoice.number }}</div>
+      <div class="muted">Date : {{ data.invoice.issue_date }}</div>
+    </div>
+  </div>
+
+  <div class="parties">
+    <div class="party">
+      <h2>Versé par</h2>
+      <div class="name">{{ data.seller.legal_name }}</div>
+    </div>
+    <div class="party">
+      <h2>Producteur bénéficiaire</h2>
+      <div class="name">{{ data.buyer.name or "—" }}</div>
+      {% if data.buyer.address %}<div>{{ data.buyer.address }}</div>{% endif %}
+    </div>
+  </div>
+
+  <table class="lines">
+    <thead>
+      <tr>
+        <th>Description</th>
+        <th>EAN</th>
+        <th class="num">Injection partagée (kWh)</th>
+        <th class="num">Prix de rachat</th>
+        <th class="num">Montant ({{ data.invoice.currency }})</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for line in data.lines %}
+      <tr>
+        <td>{{ line.description or "Rémunération de l'injection partagée" }}</td>
+        <td>{{ line.ean }}</td>
+        <td class="num">{{ line.quantity_kwh }}</td>
+        <td class="num">{{ line.unit_price }}</td>
+        <td class="num">{{ line.amount }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <table class="totals">
+    <tr>
+      <td>Montant HTVA</td>
+      <td class="num">{{ data.invoice.subtotal }} {{ data.invoice.currency }}</td>
+    </tr>
+    {% if data.invoice.vat_amount and data.invoice.vat_amount != "0.00" %}
+    <tr>
+      <td>TVA</td>
+      <td class="num">{{ data.invoice.vat_amount }} {{ data.invoice.currency }}</td>
+    </tr>
+    {% endif %}
+    <tr class="grand">
+      <td>Total à vous verser</td>
+      <td class="num">{{ data.invoice.total }} {{ data.invoice.currency }}</td>
+    </tr>
+  </table>
+
+  <div class="pay">
+    <strong>Versement</strong> — ce montant vous sera versé par {{ data.seller.legal_name }}
+    {% if data.buyer.iban %}sur votre compte <strong>{{ data.buyer.iban }}</strong>{% endif %}.
+  </div>
+
+  {% if data.legal_mentions %}
+  <div class="legal">
+    {% for mention in data.legal_mentions %}<p>{{ mention }}</p>{% endfor %}
+  </div>
+  {% endif %}
+</body>
+</html>

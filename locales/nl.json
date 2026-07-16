@@ -1,0 +1,40 @@
+{
+  "ERRORS": {
+    "AUTH": {
+      "UNAUTHORIZED": "Authenticatie vereist (code: 1)",
+      "FORBIDDEN": "Toegang geweigerd (code: 2)",
+      "RATE_LIMITED": "Te veel verzoeken, probeer het later opnieuw (code: 3)",
+      "AUTHORIZATION_MISSING": "Autorisatie-header ontbreekt (code: 4)"
+    },
+    "SUBSCRIPTION": {
+      "NOT_SUBSCRIBED": "U bent niet geabonneerd op deze dienst (code: 1003)"
+    },
+    "BILLING": {
+      "GET_TARIFFS": "Ophalen van tarieven mislukt (code: 2200)",
+      "TARIFF_NOT_FOUND": "Geen toepasselijk tarief gevonden voor de periode (code: 2201)",
+      "CREATE_TARIFF": "Aanmaken van het tarief mislukt (code: 2202)",
+      "DELETE_TARIFF": "Verwijderen van het tarief mislukt (code: 2203)",
+      "INVALID_TARIFF": "Ongeldige tariefdefinitie (code: 2204)",
+      "GET_BILLING_RUNS": "Ophalen van facturatieruns mislukt (code: 2210)",
+      "BILLING_RUN_NOT_FOUND": "Facturatierun niet gevonden (code: 2211)",
+      "RUN_ALREADY_EXISTS": "Er bestaat al een facturatierun voor deze operatie en periode (code: 2212)",
+      "NO_CONSUMPTION_DATA": "Geen verrekeningsgegevens gevonden voor de operatie en periode (code: 2213)",
+      "COMMUNITY_BILLING_INFO_INCOMPLETE": "De gemeenschap mist facturatiegegevens (IBAN of wettelijke naam) (code: 2214)",
+      "DOUBLE_IMPORT_DETECTED": "Dubbele verrekeningsregels gedetecteerd; importeer de verrekening opnieuw voordat u factureert (code: 2215)",
+      "START_BILLING_RUN": "Starten van de facturatierun mislukt (code: 2216)",
+      "GET_INVOICES": "Ophalen van facturen mislukt (code: 2220)",
+      "INVOICE_NOT_FOUND": "Factuur niet gevonden (code: 2221)",
+      "INVOICE_NOT_DRAFT": "De factuur is geen concept en kan niet worden gewijzigd (code: 2222)",
+      "INVOICE_NOT_ISSUED": "De factuur is niet uitgereikt (code: 2223)",
+      "NO_BILLING_EMAIL": "Voor deze deelnemer is geen facturatie-e-mailadres beschikbaar (code: 2224)",
+      "NUMBERING_FAILED": "Toewijzen van een factuurnummer mislukt (code: 2225)",
+      "ISSUE_INVOICE": "Uitreiken van de factuur mislukt (code: 2226)",
+      "INVOICE_PDF_NOT_READY": "De factuur-PDF is nog niet gereed (code: 2227)",
+      "INVOICE_NOT_RENDERABLE": "Deze factuur kan niet als PDF worden gegenereerd (code: 2228)",
+      "INVOICE_PDF_DELETE_FORBIDDEN": "De PDF kan niet meer worden verwijderd zodra de factuur is verzonden (code: 2229)",
+      "CREDIT_NOTE_TARGET_INVALID": "Voor de factuur kan geen creditnota worden aangemaakt (code: 2240)",
+      "REGISTER_PAYMENT": "Registreren van de betaling mislukt (code: 2241)",
+      "REGIME_NOT_CONFIGURED": "Er is geen facturatieregime geconfigureerd voor de regulator van deze gemeenschap (code: 2250)"
+    }
+  }
+}

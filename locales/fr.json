@@ -1,0 +1,40 @@
+{
+  "ERRORS": {
+    "AUTH": {
+      "UNAUTHORIZED": "Authentification requise (code: 1)",
+      "FORBIDDEN": "Accès refusé (code: 2)",
+      "RATE_LIMITED": "Trop de requêtes, veuillez réessayer plus tard (code: 3)",
+      "AUTHORIZATION_MISSING": "En-tête d'autorisation manquant (code: 4)"
+    },
+    "SUBSCRIPTION": {
+      "NOT_SUBSCRIBED": "Vous n'êtes pas abonné à ce service (code: 1003)"
+    },
+    "BILLING": {
+      "GET_TARIFFS": "Échec de la récupération des tarifs (code: 2200)",
+      "TARIFF_NOT_FOUND": "Aucun tarif applicable trouvé pour la période (code: 2201)",
+      "CREATE_TARIFF": "Échec de la création du tarif (code: 2202)",
+      "DELETE_TARIFF": "Échec de la suppression du tarif (code: 2203)",
+      "INVALID_TARIFF": "Définition de tarif invalide (code: 2204)",
+      "GET_BILLING_RUNS": "Échec de la récupération des cycles de facturation (code: 2210)",
+      "BILLING_RUN_NOT_FOUND": "Cycle de facturation introuvable (code: 2211)",
+      "RUN_ALREADY_EXISTS": "Un cycle de facturation existe déjà pour cette opération et cette période (code: 2212)",
+      "NO_CONSUMPTION_DATA": "Aucune donnée de répartition trouvée pour l'opération et la période (code: 2213)",
+      "COMMUNITY_BILLING_INFO_INCOMPLETE": "Les informations de facturation de la communauté sont incomplètes (IBAN ou dénomination légale) (code: 2214)",
+      "DOUBLE_IMPORT_DETECTED": "Lignes de répartition en double détectées ; réimportez la répartition avant de facturer (code: 2215)",
+      "START_BILLING_RUN": "Échec du démarrage du cycle de facturation (code: 2216)",
+      "GET_INVOICES": "Échec de la récupération des factures (code: 2220)",
+      "INVOICE_NOT_FOUND": "Facture introuvable (code: 2221)",
+      "INVOICE_NOT_DRAFT": "La facture n'est pas un brouillon et ne peut pas être modifiée (code: 2222)",
+      "INVOICE_NOT_ISSUED": "La facture n'a pas été émise (code: 2223)",
+      "NO_BILLING_EMAIL": "Aucune adresse e-mail de facturation n'est disponible pour ce participant (code: 2224)",
+      "NUMBERING_FAILED": "Échec de l'attribution d'un numéro de facture (code: 2225)",
+      "ISSUE_INVOICE": "Échec de l'émission de la facture (code: 2226)",
+      "INVOICE_PDF_NOT_READY": "Le PDF de la facture n'est pas encore prêt (code: 2227)",
+      "INVOICE_NOT_RENDERABLE": "Cette facture ne peut pas être générée en PDF (code: 2228)",
+      "INVOICE_PDF_DELETE_FORBIDDEN": "Le PDF ne peut plus être supprimé une fois la facture envoyée (code: 2229)",
+      "CREDIT_NOTE_TARGET_INVALID": "La facture ne peut pas faire l'objet d'une note de crédit (code: 2240)",
+      "REGISTER_PAYMENT": "Échec de l'enregistrement du paiement (code: 2241)",
+      "REGIME_NOT_CONFIGURED": "Aucun régime de facturation n'est configuré pour le régulateur de cette communauté (code: 2250)"
+    }
+  }
+}

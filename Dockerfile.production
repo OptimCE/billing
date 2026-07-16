@@ -1,0 +1,43 @@
+# ---------- stage 1: build ----------
+FROM python:3.12-slim AS builder
+
+WORKDIR /build
+COPY requirements/base.txt requirements/base.txt
+COPY requirements/api.txt  requirements/api.txt
+
+RUN pip install --no-cache-dir --prefix=/install -r requirements/api.txt
+
+# ---------- stage 2: runtime ----------
+FROM python:3.12-slim
+
+# Security: non-root user
+RUN groupadd -r app && useradd -r -g app -d /app -s /sbin/nologin app
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+# Copy only installed packages from builder
+COPY --from=builder /install /usr/local
+
+# Copy application code (API surface + shared domain/infra).
+# NOTE: the startup regime parity assertion reads reference/regulators.json —
+# set REGULATORS_CONFIG_PATH to a mounted copy in the container (it lives outside
+# this build context; see .env.production.exemple).
+COPY main.py .
+COPY core/    core/
+COPY api/     api/
+COPY shared/  shared/
+COPY regime/  regime/
+COPY ports/   ports/
+COPY utils/   utils/
+COPY locales/ locales/
+
+# Own everything by app user
+RUN chown -R app:app /app
+USER app
+
+EXPOSE 8000
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--limit-max-requests", "2097152"]
