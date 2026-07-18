@@ -49,6 +49,7 @@ def run_to_out(run: BillingRunModel, *, invoice_count: int | None = None) -> Bil
         status=run.status,
         regulator=run.regulator,
         invoice_count=invoice_count,
+        warnings=run.warnings,
         created_at=run.created_at,
     )
 

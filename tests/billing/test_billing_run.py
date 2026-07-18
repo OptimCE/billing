@@ -130,6 +130,136 @@ async def test_billing_run_end_to_end(client, db_session):
     assert len(resp.json()["data"]) == 2
 
 
+async def test_billing_run_mid_month_transfer_prorates_by_owner(client, db_session):
+    """A meter changing owner mid-month yields one invoice per owner, each
+    billed exactly for the volume read during their ownership window."""
+    _use_fake_publisher()
+    cid, op = await _seed_operation(db_session)
+    m_a = await f.create_member(db_session, id_community=cid, name="First Owner")
+    m_b = await f.create_member(db_session, id_community=cid, name="Second Owner")
+    await f.create_meter(db_session, ean="EAN-T", id_community=cid)
+    await f.create_meter_data(
+        db_session, ean="EAN-T", id_community=cid, id_sharing_operation=op,
+        id_member=m_a, client_type=1,
+        start_date=datetime.date(2026, 6, 1), end_date=datetime.date(2026, 6, 15),
+    )
+    await f.create_meter_data(
+        db_session, ean="EAN-T", id_community=cid, id_sharing_operation=op,
+        id_member=m_b, client_type=1,
+        start_date=datetime.date(2026, 6, 16), end_date=None,
+    )
+    for ts, shared in [(f.june(5), 10.0), (f.june(10), 20.0), (f.june(20), 40.0)]:
+        await f.create_meter_consumption(
+            db_session, ean="EAN-T", id_community=cid, id_sharing_operation=op,
+            timestamp=ts, shared=shared,
+        )
+    await _create_global_tariffs(client, op)
+
+    resp = await client.post(
+        f"/sharing-operations/{op}/billing-runs",
+        headers=_headers(),
+        json={"period_start": "2026-06-01", "period_end": "2026-06-30"},
+    )
+    assert resp.status_code == 200, resp.text
+    run = resp.json()["data"]
+    assert run["warnings"] is None
+    run_id = run["id"]
+
+    count = await persistence.process_billing_run(
+        run_id, local_session=db_session, crm_session=db_session
+    )
+    assert count == 2  # one consumer invoice per owner
+
+    resp = await client.get(f"/billing-runs/{run_id}/invoices", headers=_headers())
+    invoices = {inv["id_member"]: inv for inv in resp.json()["data"]}
+    assert set(invoices) == {m_a, m_b}
+    assert Decimal(invoices[m_a]["subtotal"]) == Decimal("4.50")  # 30 kWh x 0.15
+    assert Decimal(invoices[m_b]["subtotal"]) == Decimal("6.00")  # 40 kWh x 0.15
+
+    # Each invoice line carries the owner's window so the split is auditable.
+    detail_a = (await client.get(f"/invoices/{invoices[m_a]['id']}", headers=_headers())).json()
+    detail_b = (await client.get(f"/invoices/{invoices[m_b]['id']}", headers=_headers())).json()
+    assert "du 01/06/2026 au 15/06/2026" in detail_a["data"]["lines"][0]["description"]
+    assert "du 16/06/2026 au 30/06/2026" in detail_b["data"]["lines"][0]["description"]
+
+
+async def test_billing_run_refuses_overlapping_ownership(client, db_session):
+    _use_fake_publisher()
+    cid, op = await _seed_operation(db_session)
+    m_a = await f.create_member(db_session, id_community=cid)
+    m_b = await f.create_member(db_session, id_community=cid)
+    await f.create_meter(db_session, ean="EAN-OVL", id_community=cid)
+    await f.create_meter_data(
+        db_session, ean="EAN-OVL", id_community=cid, id_sharing_operation=op,
+        id_member=m_a, start_date=datetime.date(2026, 6, 1), end_date=datetime.date(2026, 6, 20),
+    )
+    await f.create_meter_data(
+        db_session, ean="EAN-OVL", id_community=cid, id_sharing_operation=op,
+        id_member=m_b, start_date=datetime.date(2026, 6, 15), end_date=None,
+    )
+    await f.create_meter_consumption(
+        db_session, ean="EAN-OVL", id_community=cid, id_sharing_operation=op,
+        timestamp=f.june(17), shared=10.0,
+    )
+
+    resp = await client.post(
+        f"/sharing-operations/{op}/billing-runs",
+        headers=_headers(),
+        json={"period_start": "2026-06-01", "period_end": "2026-06-30"},
+    )
+    assert resp.status_code == 422
+    assert resp.json()["error_code"] == 2217  # METER_OWNERSHIP_OVERLAP
+
+    # The refused run left nothing behind: same period can be retried later.
+    resp = await client.get(f"/sharing-operations/{op}/billing-runs", headers=_headers())
+    assert resp.json()["data"] == []
+
+
+async def test_billing_run_orphan_volume_warns_and_stays_unbilled(client, db_session):
+    _use_fake_publisher()
+    cid, op = await _seed_operation(db_session)
+    m = await f.create_member(db_session, id_community=cid)
+    await f.create_meter(db_session, ean="EAN-O", id_community=cid)
+    # Ownership only starts on the 16th: earlier readings belong to nobody.
+    await f.create_meter_data(
+        db_session, ean="EAN-O", id_community=cid, id_sharing_operation=op,
+        id_member=m, client_type=1, start_date=datetime.date(2026, 6, 16),
+    )
+    await f.create_meter_consumption(
+        db_session, ean="EAN-O", id_community=cid, id_sharing_operation=op,
+        timestamp=f.june(5), shared=10.0,
+    )
+    await f.create_meter_consumption(
+        db_session, ean="EAN-O", id_community=cid, id_sharing_operation=op,
+        timestamp=f.june(20), shared=20.0,
+    )
+    await _create_global_tariffs(client, op)
+
+    resp = await client.post(
+        f"/sharing-operations/{op}/billing-runs",
+        headers=_headers(),
+        json={"period_start": "2026-06-01", "period_end": "2026-06-30"},
+    )
+    assert resp.status_code == 200, resp.text
+    run = resp.json()["data"]
+    assert run["warnings"] is not None
+    assert run["warnings"][0]["code"] == "ORPHAN_VOLUME"
+    assert run["warnings"][0]["eans"][0]["ean"] == "EAN-O"
+    assert Decimal(run["warnings"][0]["eans"][0]["shared_kwh"]) == Decimal("10.0")
+    run_id = run["id"]
+
+    count = await persistence.process_billing_run(
+        run_id, local_session=db_session, crm_session=db_session
+    )
+    assert count == 1  # only the owned volume is invoiced
+
+    resp = await client.get(f"/billing-runs/{run_id}/invoices", headers=_headers())
+    invoices = resp.json()["data"]
+    assert len(invoices) == 1
+    assert invoices[0]["id_member"] == m
+    assert Decimal(invoices[0]["subtotal"]) == Decimal("3.00")  # 20 kWh x 0.15
+
+
 async def test_run_requires_community_iban(client, db_session):
     _use_fake_publisher()
     cid, op = await _seed_operation(db_session, iban=None)

@@ -22,6 +22,7 @@
       "COMMUNITY_BILLING_INFO_INCOMPLETE": "The community is missing billing information (IBAN or legal name) (code: 2214)",
       "DOUBLE_IMPORT_DETECTED": "Duplicate settlement rows detected; re-import the settlement before billing (code: 2215)",
       "START_BILLING_RUN": "Failed to start the billing run (code: 2216)",
+      "METER_OWNERSHIP_OVERLAP": "Overlapping meter ownership periods detected for the billing period; fix the meter history before billing (code: 2217)",
       "GET_INVOICES": "Failed to retrieve invoices (code: 2220)",
       "INVOICE_NOT_FOUND": "Invoice not found (code: 2221)",
       "INVOICE_NOT_DRAFT": "The invoice is not a draft and cannot be modified (code: 2222)",

@@ -75,6 +75,7 @@ class BillingRunOut(BaseModel):
     status: int
     regulator: str
     invoice_count: int | None = None
+    warnings: list[dict] | None = None
     created_at: datetime.datetime | None = None
 
 

@@ -22,6 +22,7 @@
       "COMMUNITY_BILLING_INFO_INCOMPLETE": "De gemeenschap mist facturatiegegevens (IBAN of wettelijke naam) (code: 2214)",
       "DOUBLE_IMPORT_DETECTED": "Dubbele verrekeningsregels gedetecteerd; importeer de verrekening opnieuw voordat u factureert (code: 2215)",
       "START_BILLING_RUN": "Starten van de facturatierun mislukt (code: 2216)",
+      "METER_OWNERSHIP_OVERLAP": "Overlappende periodes van meterinhouderschap gedetecteerd voor de facturatieperiode; corrigeer de meterhistoriek vóór facturatie (code: 2217)",
       "GET_INVOICES": "Ophalen van facturen mislukt (code: 2220)",
       "INVOICE_NOT_FOUND": "Factuur niet gevonden (code: 2221)",
       "INVOICE_NOT_DRAFT": "De factuur is geen concept en kan niet worden gewijzigd (code: 2222)",

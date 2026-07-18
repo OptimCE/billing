@@ -7,6 +7,7 @@ kWh volumes keep full precision until then.
 
 from __future__ import annotations
 
+import datetime
 from decimal import Decimal
 
 from regime.base import BillingRegime
@@ -33,10 +34,21 @@ def _doc_type(direction: int) -> InvoiceType:
     )
 
 
-def _description(direction: int, ean: str) -> str:
+def _description(
+    direction: int,
+    ean: str,
+    owned_from: datetime.date | None = None,
+    owned_to: datetime.date | None = None,
+) -> str:
     if direction == BillingDirection.CONSUMER:
-        return f"Énergie partagée consommée — EAN {ean}"
-    return f"Rémunération de l'injection partagée — EAN {ean}"
+        base = f"Énergie partagée consommée — EAN {ean}"
+    else:
+        base = f"Rémunération de l'injection partagée — EAN {ean}"
+    # Ownership window set on the snapshot only when it is a strict subset of
+    # the run period (mid-period owner change): date the line for transparency.
+    if owned_from is not None and owned_to is not None:
+        base += f" — du {owned_from:%d/%m/%Y} au {owned_to:%d/%m/%Y}"
+    return base
 
 
 def build_invoices(
@@ -79,7 +91,9 @@ def build_invoices(
                     quantity_kwh=quantity,
                     unit_price=unit_price,
                     amount=line_amount(quantity, unit_price),
-                    description=_description(direction, snapshot.ean),
+                    description=_description(
+                        direction, snapshot.ean, snapshot.owned_from, snapshot.owned_to
+                    ),
                 )
             )
 

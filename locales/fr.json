@@ -22,6 +22,7 @@
       "COMMUNITY_BILLING_INFO_INCOMPLETE": "Les informations de facturation de la communauté sont incomplètes (IBAN ou dénomination légale) (code: 2214)",
       "DOUBLE_IMPORT_DETECTED": "Lignes de répartition en double détectées ; réimportez la répartition avant de facturer (code: 2215)",
       "START_BILLING_RUN": "Échec du démarrage du cycle de facturation (code: 2216)",
+      "METER_OWNERSHIP_OVERLAP": "Périodes de titularité de compteur qui se chevauchent détectées pour la période de facturation ; corrigez l'historique du compteur avant de facturer (code: 2217)",
       "GET_INVOICES": "Échec de la récupération des factures (code: 2220)",
       "INVOICE_NOT_FOUND": "Facture introuvable (code: 2221)",
       "INVOICE_NOT_DRAFT": "La facture n'est pas un brouillon et ne peut pas être modifiée (code: 2222)",

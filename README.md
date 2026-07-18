@@ -1,4 +1,15 @@
-# billing — OptimCE billing generation service
+<p align="center">
+  <img src="docs/logo.svg" alt="OptimCE logo" width="160">
+</p>
+
+# OptimCE — Billing Service
+
+[![Website](https://img.shields.io/badge/Website-optimce.be-2e7d32.svg)](https://www.optimce.be/en/)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
+[![en](https://img.shields.io/badge/lang-en-43a047.svg)](README.md)
+[![fr](https://img.shields.io/badge/lang-fr-lightgrey.svg)](docs/README.fr.md)
+[![de](https://img.shields.io/badge/lang-de-lightgrey.svg)](docs/README.de.md)
+[![nl](https://img.shields.io/badge/lang-nl-lightgrey.svg)](docs/README.nl.md)
 
 Generates, issues, tracks, and reconciles invoices for energy-sharing operations
 (Wallonia / CWaPE in v1). The community (the *représentant du partage*) bills
@@ -8,6 +19,10 @@ settlement data the core CRM already stores in `meter_consumption`.
 This is an **annexe** service: it owns its own database and reads the CRM core DB
 read-only. It does **not** import or parse CWaPE documents — the core CRM does
 that; this service reads `meter_consumption` and prices it.
+
+This service is part of the [OptimCE](https://www.optimce.be/en/) platform. The
+full stack (gateway, authentication, databases, and the other services) runs from
+the [monorepo](https://github.com/OptimCE/monorepo).
 
 ## Two deployables
 
@@ -73,3 +88,18 @@ Local dev: copy `.env.exemple` → `.env.local`, then `uvicorn main:app --reload
 - VAT rate/exemptions (21% placeholder; producer-statement VAT to confirm) —
   fiscal review.
 - `KWH_SCALE=1.0` — re-confirm against live CWaPE data before the first real run.
+
+## Contributing
+
+Contributions are welcome! Please read the
+[contributing guidelines](CONTRIBUTING.md) and our
+[Code of Conduct](CODE_OF_CONDUCT.md) before opening an issue or pull request.
+
+## Security
+
+To report a security vulnerability, please follow the
+[security policy](SECURITY.md) — do not open a public issue.
+
+## License
+
+This project is licensed under the [Apache License 2.0](LICENSE).

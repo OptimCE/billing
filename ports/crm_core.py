@@ -39,10 +39,21 @@ class CommunityIdentity:
 
 
 @dataclass(frozen=True)
-class EanAggregate:
-    """Summed settlement volumes for one EAN over the period (raw, unscaled)."""
+class EanMemberAggregate:
+    """Summed settlement volumes for one (EAN, owner) over the period (raw, unscaled).
+
+    Readings are attributed to the member whose meter_data window contains the
+    reading's Brussels-local date, so a meter that changed owner mid-period
+    yields one aggregate per owner. ``id_member is None`` collects orphan
+    volume — readings covered by no ownership window.
+    """
 
     ean: str
+    id_member: int | None
+    client_type: int | None
+    injection_status: int | None
+    owned_from: date | None  # earliest matched window start; None for orphans
+    owned_to: date | None  # latest matched window end; None if open-ended or orphan
     shared_sum: Decimal
     inj_shared_sum: Decimal
     row_count: int
@@ -52,16 +63,6 @@ class EanAggregate:
     def has_duplicate_rows(self) -> bool:
         """True if the same (ean, timestamp) appears more than once → double import."""
         return self.row_count != self.distinct_ts
-
-
-@dataclass(frozen=True)
-class ActiveEan:
-    """An EAN active in the operation during the period, with its membership."""
-
-    ean: str
-    id_member: int | None
-    client_type: int | None
-    injection_status: int | None
 
 
 @dataclass(frozen=True)
@@ -92,25 +93,25 @@ class CrmCoreReadPort(Protocol):
         period_end: date,
     ) -> bool: ...
 
-    async def aggregate_by_ean(
+    async def aggregate_by_ean_member(
         self,
         *,
         id_community: int,
         id_sharing_operation: int,
         period_start: date,
         period_end: date,
-    ) -> list[EanAggregate]: ...
+    ) -> list[EanMemberAggregate]: ...
+
+    async def find_ownership_overlaps(
+        self,
+        *,
+        id_community: int,
+        id_sharing_operation: int,
+        period_start: date,
+        period_end: date,
+    ) -> list[str]: ...
 
     async def get_community_identity(self, *, id_community: int) -> CommunityIdentity | None: ...
-
-    async def active_eans(
-        self,
-        *,
-        id_community: int,
-        id_sharing_operation: int,
-        period_start: date,
-        period_end: date,
-    ) -> list[ActiveEan]: ...
 
     async def participant_contacts(
         self, *, id_community: int, member_ids: Sequence[int]

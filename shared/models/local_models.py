@@ -115,12 +115,22 @@ class BillingRunModel(_TimestampMixin, LocalBase):
 
 
 class SettlementSnapshotModel(LocalBase):
-    """Frozen per-EAN volumes for a run — the reproducible pricing input."""
+    """Frozen per-(EAN, member) volumes for a run — the reproducible pricing input.
+
+    A meter that changed owner mid-period yields one row per owner; the
+    NULL-member row holds orphan volume (readings covered by no ownership
+    window), which is never invoiced.
+    """
 
     __tablename__ = "settlement_snapshot"
     __table_args__ = (
         UniqueConstraint(
-            "id_billing_run", "ean", "direction", name="uq_settlement_snapshot_run_ean_dir"
+            "id_billing_run",
+            "ean",
+            "direction",
+            "id_member",
+            name="uq_settlement_snapshot_run_ean_dir_member",
+            postgresql_nulls_not_distinct=True,
         ),
     )
 
@@ -141,6 +151,10 @@ class SettlementSnapshotModel(LocalBase):
     row_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     distinct_ts_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     id_member: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    # Ownership window clamped to the run period; only set when it is a strict
+    # subset of the period (drives the invoice-line date-range suffix).
+    owned_from: Mapped[datetime.date | None] = mapped_column(Date, nullable=True)
+    owned_to: Mapped[datetime.date | None] = mapped_column(Date, nullable=True)
 
     created_at: Mapped[datetime.datetime] = mapped_column(
         TIMESTAMP(timezone=True), nullable=False, default=_utcnow

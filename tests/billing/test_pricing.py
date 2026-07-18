@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime
 from decimal import Decimal
 
 from shared.const import BillingDirection, InvoiceStatus, InvoiceType, Measure
@@ -28,6 +29,8 @@ def _snap(
     shared: Decimal = Decimal(0),
     inj: Decimal = Decimal(0),
     client_type: int = 1,
+    owned_from: datetime.date | None = None,
+    owned_to: datetime.date | None = None,
 ) -> SettlementSnapshotModel:
     snapshot = SettlementSnapshotModel(
         id_community=1,
@@ -40,6 +43,8 @@ def _snap(
         row_count=1,
         distinct_ts_count=1,
         id_member=member,
+        owned_from=owned_from,
+        owned_to=owned_to,
     )
     snapshot.id = snap_id  # PK is normally DB-assigned; set for the prices map
     return snapshot
@@ -86,6 +91,41 @@ def test_build_invoices_skips_zero_volume_and_memberless():
         regime=FakeRegime(),
     )
     assert invoices == []
+
+
+def test_line_description_carries_ownership_window_when_set():
+    snaps = [
+        _snap(
+            1,
+            "EAN-W",
+            BillingDirection.CONSUMER,
+            10,
+            shared=Decimal("30"),
+            owned_from=datetime.date(2026, 6, 1),
+            owned_to=datetime.date(2026, 6, 15),
+        ),
+    ]
+    invoices = build_invoices(
+        id_community=1,
+        id_billing_run=1,
+        snapshots=snaps,
+        prices={1: (Decimal("0.15"), "EUR")},
+        regime=FakeRegime(),
+    )
+    assert invoices[0].lines[0].description.endswith("— du 01/06/2026 au 15/06/2026")
+
+
+def test_line_description_has_no_window_for_full_period_snapshot():
+    snaps = [_snap(1, "EAN-F", BillingDirection.CONSUMER, 10, shared=Decimal("30"))]
+    invoices = build_invoices(
+        id_community=1,
+        id_billing_run=1,
+        snapshots=snaps,
+        prices={1: (Decimal("0.15"), "EUR")},
+        regime=FakeRegime(),
+    )
+    assert "du " not in invoices[0].lines[0].description
+    assert invoices[0].lines[0].description == "Énergie partagée consommée — EAN EAN-F"
 
 
 def test_build_invoices_one_invoice_many_lines_for_same_member():

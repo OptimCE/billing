@@ -146,7 +146,22 @@ class BillingService:
         except RegimeConfigError as exc:
             raise ErrorException(errors.billing.REGIME_NOT_CONFIGURED, status_code=500) from exc
 
-        aggregates = await self._crm_read.aggregate_by_ean(
+        # Overlapping ownership windows would silently attribute the same
+        # reading to two members — refuse the run until the CRM history is fixed.
+        overlapping_eans = await self._crm_read.find_ownership_overlaps(
+            id_community=cid,
+            id_sharing_operation=id_sharing_operation,
+            period_start=period_start,
+            period_end=period_end,
+        )
+        if overlapping_eans:
+            logger.warning(
+                "Billing run refused: overlapping meter ownership for EANs %s",
+                overlapping_eans,
+            )
+            raise ErrorException(errors.billing.METER_OWNERSHIP_OVERLAP, status_code=422)
+
+        aggregates = await self._crm_read.aggregate_by_ean_member(
             id_community=cid,
             id_sharing_operation=id_sharing_operation,
             period_start=period_start,
@@ -189,19 +204,27 @@ class BillingService:
             await self._local.rollback()
             raise ErrorException(errors.billing.RUN_ALREADY_EXISTS, status_code=409) from exc
 
-        active = await self._crm_read.active_eans(
-            id_community=cid,
-            id_sharing_operation=id_sharing_operation,
-            period_start=period_start,
-            period_end=period_end,
-        )
-        active_by_ean = {row.ean: row for row in active}
-
         snapshots: list[SettlementSnapshotModel] = []
+        orphans: list[dict[str, str]] = []
         for agg in aggregates:
-            member = active_by_ean.get(agg.ean)
-            id_member = member.id_member if member else None
-            client_type = member.client_type if member else None
+            # Ownership window clamped to the run period; kept only when it is
+            # a strict subset (drives the invoice-line date-range suffix).
+            owned_from = owned_to = None
+            if agg.id_member is not None and agg.owned_from is not None:
+                clamp_from = max(agg.owned_from, period_start)
+                clamp_to = (
+                    min(agg.owned_to, period_end) if agg.owned_to is not None else period_end
+                )
+                if (clamp_from, clamp_to) != (period_start, period_end):
+                    owned_from, owned_to = clamp_from, clamp_to
+            if agg.id_member is None and (agg.shared_sum > 0 or agg.inj_shared_sum > 0):
+                orphans.append(
+                    {
+                        "ean": agg.ean,
+                        "shared_kwh": str(agg.shared_sum * scale),
+                        "inj_shared_kwh": str(agg.inj_shared_sum * scale),
+                    }
+                )
             if agg.shared_sum > 0:
                 snapshots.append(
                     SettlementSnapshotModel(
@@ -209,12 +232,14 @@ class BillingService:
                         id_billing_run=run.id,
                         ean=agg.ean,
                         direction=BillingDirection.CONSUMER,
-                        client_type=client_type,
+                        client_type=agg.client_type,
                         shared_kwh=agg.shared_sum * scale,
                         inj_shared_kwh=Decimal(0),
                         row_count=agg.row_count,
                         distinct_ts_count=agg.distinct_ts,
-                        id_member=id_member,
+                        id_member=agg.id_member,
+                        owned_from=owned_from,
+                        owned_to=owned_to,
                     )
                 )
             if agg.inj_shared_sum > 0:
@@ -224,14 +249,27 @@ class BillingService:
                         id_billing_run=run.id,
                         ean=agg.ean,
                         direction=BillingDirection.PRODUCER,
-                        client_type=client_type,
+                        client_type=agg.client_type,
                         shared_kwh=Decimal(0),
                         inj_shared_kwh=agg.inj_shared_sum * scale,
                         row_count=agg.row_count,
                         distinct_ts_count=agg.distinct_ts,
-                        id_member=id_member,
+                        id_member=agg.id_member,
+                        owned_from=owned_from,
+                        owned_to=owned_to,
                     )
                 )
+        if orphans:
+            # Volume nobody owned at reading time: never invoiced (NULL-member
+            # snapshots are skipped at pricing) but surfaced to the manager so
+            # the meter history can be repaired and the run recreated.
+            run.warnings = [
+                {
+                    "code": "ORPHAN_VOLUME",
+                    "message": "Consumption not covered by any member ownership window",
+                    "eans": orphans,
+                }
+            ]
         await self._repo.add_snapshots(snapshots)
         await self._local.commit()  # freeze run + snapshots
 
@@ -257,7 +295,8 @@ class BillingService:
                     "kwh_scale": str(scale),
                     "period_start": str(period_start),
                     "period_end": str(period_end),
-                    "ean_count": len(aggregates),
+                    "ean_count": len({agg.ean for agg in aggregates}),
+                    "orphan_ean_count": len(orphans),
                 },
             ),
             id_community=cid,

@@ -22,6 +22,7 @@
       "COMMUNITY_BILLING_INFO_INCOMPLETE": "Der Gemeinschaft fehlen Abrechnungsinformationen (IBAN oder rechtlicher Name) (Code: 2214)",
       "DOUBLE_IMPORT_DETECTED": "Doppelte Abrechnungszeilen erkannt; importieren Sie die Abrechnung vor der Fakturierung erneut (Code: 2215)",
       "START_BILLING_RUN": "Abrechnungslauf konnte nicht gestartet werden (Code: 2216)",
+      "METER_OWNERSHIP_OVERLAP": "Überlappende Zeiträume der Zählerinhaberschaft für den Abrechnungszeitraum erkannt; korrigieren Sie die Zählerhistorie vor der Fakturierung (Code: 2217)",
       "GET_INVOICES": "Rechnungen konnten nicht abgerufen werden (Code: 2220)",
       "INVOICE_NOT_FOUND": "Rechnung nicht gefunden (Code: 2221)",
       "INVOICE_NOT_DRAFT": "Die Rechnung ist kein Entwurf und kann nicht geändert werden (Code: 2222)",
