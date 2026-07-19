@@ -54,7 +54,8 @@ def test_get_for_unknown_regulator_raises():
 
 
 def test_parity_passes_for_real_config():
-    # Real reference/regulators.json (CWaPE active) + billing_regimes.json.
+    # Vendored tests/fixtures/regulators.json (copy of the shared reference file,
+    # CWaPE active) + billing_regimes.json; wired via REGULATORS_CONFIG_PATH in conftest.
     assert_regime_parity()
 
 

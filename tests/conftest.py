@@ -34,6 +34,15 @@ from pathlib import Path
 # so this assignment must happen before `from main import app` below.
 os.environ.setdefault("ENV", "test")
 
+# The shared reference/regulators.json lives at the monorepo root, which is not
+# checked out when billing runs standalone in CI. Point the regulator loader at
+# the vendored fixture copy so the parity test is self-contained (mirrors
+# crm-backend/config/test.cjs). An explicitly-provided env var still wins.
+os.environ.setdefault(
+    "REGULATORS_CONFIG_PATH",
+    str(Path(__file__).resolve().parent / "fixtures" / "regulators.json"),
+)
+
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
