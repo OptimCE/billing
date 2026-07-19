@@ -51,12 +51,21 @@ async def _seed(client, db_session) -> tuple[int, int, int]:
     for ean, member in (("EAN-A", member_a), ("EAN-B", member_b)):
         await f.create_meter(db_session, ean=ean, id_community=cid)
         await f.create_meter_data(
-            db_session, ean=ean, id_community=cid, id_sharing_operation=op,
-            id_member=member, client_type=1, start_date=datetime.date(2026, 1, 1),
+            db_session,
+            ean=ean,
+            id_community=cid,
+            id_sharing_operation=op,
+            id_member=member,
+            client_type=1,
+            start_date=datetime.date(2026, 1, 1),
         )
         await f.create_meter_consumption(
-            db_session, ean=ean, id_community=cid, id_sharing_operation=op,
-            timestamp=f.june(5), shared=20.0,
+            db_session,
+            ean=ean,
+            id_community=cid,
+            id_sharing_operation=op,
+            timestamp=f.june(5),
+            shared=20.0,
         )
 
     # Link auth user "user-a" to member A only.
@@ -133,12 +142,21 @@ async def _seed_two_for_user(client, db_session) -> None:
         member = await f.create_member(db_session, id_community=cid, name=name)
         await f.create_meter(db_session, ean=ean, id_community=cid)
         await f.create_meter_data(
-            db_session, ean=ean, id_community=cid, id_sharing_operation=op,
-            id_member=member, client_type=1, start_date=datetime.date(2026, 1, 1),
+            db_session,
+            ean=ean,
+            id_community=cid,
+            id_sharing_operation=op,
+            id_member=member,
+            client_type=1,
+            start_date=datetime.date(2026, 1, 1),
         )
         await f.create_meter_consumption(
-            db_session, ean=ean, id_community=cid, id_sharing_operation=op,
-            timestamp=f.june(5), shared=kwh,
+            db_session,
+            ean=ean,
+            id_community=cid,
+            id_sharing_operation=op,
+            timestamp=f.june(5),
+            shared=kwh,
         )
         await f.link_user_to_member(db_session, id_user=user_a, id_member=member)
 
@@ -175,9 +193,9 @@ async def test_mine_issued_date_filter(client, db_session):
     await _seed(client, db_session)
 
     # Issue member A's DRAFT invoice so issued_at is populated.
-    invoice_id = (await client.get("/invoices/mine", headers=_headers("user-a"))).json()["data"][
-        0
-    ]["id"]
+    invoice_id = (await client.get("/invoices/mine", headers=_headers("user-a"))).json()["data"][0][
+        "id"
+    ]
     resp = await client.post(f"/invoices/{invoice_id}/issue", headers=_admin_headers())
     assert resp.status_code == 200, resp.text
 

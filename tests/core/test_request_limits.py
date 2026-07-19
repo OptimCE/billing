@@ -22,6 +22,4 @@ def test_cap_is_uniform_across_routes():
         ("POST", "/sharing-operations/1/billing-runs"),
         ("DELETE", "/tariffs/1"),
     ):
-        assert (
-            request_limits._max_body_for(_request(method, path)) == request_limits.MAX_BODY_BYTES
-        )
+        assert request_limits._max_body_for(_request(method, path)) == request_limits.MAX_BODY_BYTES

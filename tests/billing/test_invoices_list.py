@@ -31,12 +31,21 @@ async def _seed(client, db_session) -> tuple[int, int, int]:
         members[name] = member
         await f.create_meter(db_session, ean=ean, id_community=cid)
         await f.create_meter_data(
-            db_session, ean=ean, id_community=cid, id_sharing_operation=op,
-            id_member=member, client_type=1, start_date=datetime.date(2026, 1, 1),
+            db_session,
+            ean=ean,
+            id_community=cid,
+            id_sharing_operation=op,
+            id_member=member,
+            client_type=1,
+            start_date=datetime.date(2026, 1, 1),
         )
         await f.create_meter_consumption(
-            db_session, ean=ean, id_community=cid, id_sharing_operation=op,
-            timestamp=f.june(5), shared=kwh,
+            db_session,
+            ean=ean,
+            id_community=cid,
+            id_sharing_operation=op,
+            timestamp=f.june(5),
+            shared=kwh,
         )
 
     await client.post(

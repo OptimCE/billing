@@ -44,12 +44,21 @@ async def _seed_issued_invoice(client, db_session, *, with_email: bool = True) -
     )
     await f.create_meter(db_session, ean="EAN-C", id_community=cid)
     await f.create_meter_data(
-        db_session, ean="EAN-C", id_community=cid, id_sharing_operation=op,
-        id_member=member, client_type=1, start_date=datetime.date(2026, 1, 1),
+        db_session,
+        ean="EAN-C",
+        id_community=cid,
+        id_sharing_operation=op,
+        id_member=member,
+        client_type=1,
+        start_date=datetime.date(2026, 1, 1),
     )
     await f.create_meter_consumption(
-        db_session, ean="EAN-C", id_community=cid, id_sharing_operation=op,
-        timestamp=f.june(5), shared=30.0,
+        db_session,
+        ean="EAN-C",
+        id_community=cid,
+        id_sharing_operation=op,
+        timestamp=f.june(5),
+        shared=30.0,
     )
     await client.post(
         f"/sharing-operations/{op}/tariffs",
@@ -172,12 +181,21 @@ async def test_cannot_credit_a_draft(client, db_session):
     await f.create_individual(db_session, id_member=member, email="bob@example.be")
     await f.create_meter(db_session, ean="EAN-D", id_community=cid)
     await f.create_meter_data(
-        db_session, ean="EAN-D", id_community=cid, id_sharing_operation=op,
-        id_member=member, client_type=1, start_date=datetime.date(2026, 1, 1),
+        db_session,
+        ean="EAN-D",
+        id_community=cid,
+        id_sharing_operation=op,
+        id_member=member,
+        client_type=1,
+        start_date=datetime.date(2026, 1, 1),
     )
     await f.create_meter_consumption(
-        db_session, ean="EAN-D", id_community=cid, id_sharing_operation=op,
-        timestamp=f.june(5), shared=10.0,
+        db_session,
+        ean="EAN-D",
+        id_community=cid,
+        id_sharing_operation=op,
+        timestamp=f.june(5),
+        shared=10.0,
     )
     await client.post(
         f"/sharing-operations/{op}/tariffs",

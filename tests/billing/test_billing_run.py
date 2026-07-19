@@ -50,24 +50,46 @@ async def _seed_consumption(db_session, cid: int, op: int) -> None:
     await f.create_meter(db_session, ean="EAN-C", id_community=cid)
     await f.create_meter(db_session, ean="EAN-P", id_community=cid)
     await f.create_meter_data(
-        db_session, ean="EAN-C", id_community=cid, id_sharing_operation=op,
-        id_member=consumer, client_type=1, start_date=datetime.date(2026, 1, 1),
+        db_session,
+        ean="EAN-C",
+        id_community=cid,
+        id_sharing_operation=op,
+        id_member=consumer,
+        client_type=1,
+        start_date=datetime.date(2026, 1, 1),
     )
     await f.create_meter_data(
-        db_session, ean="EAN-P", id_community=cid, id_sharing_operation=op,
-        id_member=producer, client_type=1, start_date=datetime.date(2026, 1, 1),
+        db_session,
+        ean="EAN-P",
+        id_community=cid,
+        id_sharing_operation=op,
+        id_member=producer,
+        client_type=1,
+        start_date=datetime.date(2026, 1, 1),
     )
     await f.create_meter_consumption(
-        db_session, ean="EAN-C", id_community=cid, id_sharing_operation=op,
-        timestamp=f.june(5), shared=10.0,
+        db_session,
+        ean="EAN-C",
+        id_community=cid,
+        id_sharing_operation=op,
+        timestamp=f.june(5),
+        shared=10.0,
     )
     await f.create_meter_consumption(
-        db_session, ean="EAN-C", id_community=cid, id_sharing_operation=op,
-        timestamp=f.june(10), shared=20.0,
+        db_session,
+        ean="EAN-C",
+        id_community=cid,
+        id_sharing_operation=op,
+        timestamp=f.june(10),
+        shared=20.0,
     )
     await f.create_meter_consumption(
-        db_session, ean="EAN-P", id_community=cid, id_sharing_operation=op,
-        timestamp=f.june(7), inj_shared=15.0,
+        db_session,
+        ean="EAN-P",
+        id_community=cid,
+        id_sharing_operation=op,
+        timestamp=f.june(7),
+        inj_shared=15.0,
     )
 
 
@@ -139,19 +161,33 @@ async def test_billing_run_mid_month_transfer_prorates_by_owner(client, db_sessi
     m_b = await f.create_member(db_session, id_community=cid, name="Second Owner")
     await f.create_meter(db_session, ean="EAN-T", id_community=cid)
     await f.create_meter_data(
-        db_session, ean="EAN-T", id_community=cid, id_sharing_operation=op,
-        id_member=m_a, client_type=1,
-        start_date=datetime.date(2026, 6, 1), end_date=datetime.date(2026, 6, 15),
+        db_session,
+        ean="EAN-T",
+        id_community=cid,
+        id_sharing_operation=op,
+        id_member=m_a,
+        client_type=1,
+        start_date=datetime.date(2026, 6, 1),
+        end_date=datetime.date(2026, 6, 15),
     )
     await f.create_meter_data(
-        db_session, ean="EAN-T", id_community=cid, id_sharing_operation=op,
-        id_member=m_b, client_type=1,
-        start_date=datetime.date(2026, 6, 16), end_date=None,
+        db_session,
+        ean="EAN-T",
+        id_community=cid,
+        id_sharing_operation=op,
+        id_member=m_b,
+        client_type=1,
+        start_date=datetime.date(2026, 6, 16),
+        end_date=None,
     )
     for ts, shared in [(f.june(5), 10.0), (f.june(10), 20.0), (f.june(20), 40.0)]:
         await f.create_meter_consumption(
-            db_session, ean="EAN-T", id_community=cid, id_sharing_operation=op,
-            timestamp=ts, shared=shared,
+            db_session,
+            ean="EAN-T",
+            id_community=cid,
+            id_sharing_operation=op,
+            timestamp=ts,
+            shared=shared,
         )
     await _create_global_tariffs(client, op)
 
@@ -190,16 +226,30 @@ async def test_billing_run_refuses_overlapping_ownership(client, db_session):
     m_b = await f.create_member(db_session, id_community=cid)
     await f.create_meter(db_session, ean="EAN-OVL", id_community=cid)
     await f.create_meter_data(
-        db_session, ean="EAN-OVL", id_community=cid, id_sharing_operation=op,
-        id_member=m_a, start_date=datetime.date(2026, 6, 1), end_date=datetime.date(2026, 6, 20),
+        db_session,
+        ean="EAN-OVL",
+        id_community=cid,
+        id_sharing_operation=op,
+        id_member=m_a,
+        start_date=datetime.date(2026, 6, 1),
+        end_date=datetime.date(2026, 6, 20),
     )
     await f.create_meter_data(
-        db_session, ean="EAN-OVL", id_community=cid, id_sharing_operation=op,
-        id_member=m_b, start_date=datetime.date(2026, 6, 15), end_date=None,
+        db_session,
+        ean="EAN-OVL",
+        id_community=cid,
+        id_sharing_operation=op,
+        id_member=m_b,
+        start_date=datetime.date(2026, 6, 15),
+        end_date=None,
     )
     await f.create_meter_consumption(
-        db_session, ean="EAN-OVL", id_community=cid, id_sharing_operation=op,
-        timestamp=f.june(17), shared=10.0,
+        db_session,
+        ean="EAN-OVL",
+        id_community=cid,
+        id_sharing_operation=op,
+        timestamp=f.june(17),
+        shared=10.0,
     )
 
     resp = await client.post(
@@ -222,16 +272,29 @@ async def test_billing_run_orphan_volume_warns_and_stays_unbilled(client, db_ses
     await f.create_meter(db_session, ean="EAN-O", id_community=cid)
     # Ownership only starts on the 16th: earlier readings belong to nobody.
     await f.create_meter_data(
-        db_session, ean="EAN-O", id_community=cid, id_sharing_operation=op,
-        id_member=m, client_type=1, start_date=datetime.date(2026, 6, 16),
+        db_session,
+        ean="EAN-O",
+        id_community=cid,
+        id_sharing_operation=op,
+        id_member=m,
+        client_type=1,
+        start_date=datetime.date(2026, 6, 16),
     )
     await f.create_meter_consumption(
-        db_session, ean="EAN-O", id_community=cid, id_sharing_operation=op,
-        timestamp=f.june(5), shared=10.0,
+        db_session,
+        ean="EAN-O",
+        id_community=cid,
+        id_sharing_operation=op,
+        timestamp=f.june(5),
+        shared=10.0,
     )
     await f.create_meter_consumption(
-        db_session, ean="EAN-O", id_community=cid, id_sharing_operation=op,
-        timestamp=f.june(20), shared=20.0,
+        db_session,
+        ean="EAN-O",
+        id_community=cid,
+        id_sharing_operation=op,
+        timestamp=f.june(20),
+        shared=20.0,
     )
     await _create_global_tariffs(client, op)
 

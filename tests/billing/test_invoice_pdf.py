@@ -70,12 +70,21 @@ async def _seed_single(client, db_session, *, link_user: str | None = None):
     )
     await f.create_meter(db_session, ean="EAN-C", id_community=cid)
     await f.create_meter_data(
-        db_session, ean="EAN-C", id_community=cid, id_sharing_operation=op,
-        id_member=member, client_type=1, start_date=datetime.date(2026, 1, 1),
+        db_session,
+        ean="EAN-C",
+        id_community=cid,
+        id_sharing_operation=op,
+        id_member=member,
+        client_type=1,
+        start_date=datetime.date(2026, 1, 1),
     )
     await f.create_meter_consumption(
-        db_session, ean="EAN-C", id_community=cid, id_sharing_operation=op,
-        timestamp=f.june(5), shared=30.0,
+        db_session,
+        ean="EAN-C",
+        id_community=cid,
+        id_sharing_operation=op,
+        timestamp=f.june(5),
+        shared=30.0,
     )
     if link_user:
         u = await f.create_app_user(db_session, auth_user_id=link_user)
@@ -109,12 +118,21 @@ async def _seed_two_members(client, db_session):
     for ean, member in (("EAN-A", member_a), ("EAN-B", member_b)):
         await f.create_meter(db_session, ean=ean, id_community=cid)
         await f.create_meter_data(
-            db_session, ean=ean, id_community=cid, id_sharing_operation=op,
-            id_member=member, client_type=1, start_date=datetime.date(2026, 1, 1),
+            db_session,
+            ean=ean,
+            id_community=cid,
+            id_sharing_operation=op,
+            id_member=member,
+            client_type=1,
+            start_date=datetime.date(2026, 1, 1),
         )
         await f.create_meter_consumption(
-            db_session, ean=ean, id_community=cid, id_sharing_operation=op,
-            timestamp=f.june(5), shared=20.0,
+            db_session,
+            ean=ean,
+            id_community=cid,
+            id_sharing_operation=op,
+            timestamp=f.june(5),
+            shared=20.0,
         )
     u = await f.create_app_user(db_session, auth_user_id="owner")
     await f.link_user_to_member(db_session, id_user=u, id_member=member_a)
@@ -187,8 +205,13 @@ async def test_generate_pdf_force_clears_artifact(client, db_session):
     _cid, _member, invoice = await _seed_single(client, db_session)
     invoice_id = invoice["id"]
     await _issue(client, invoice_id)
-    await _set(db_session, invoice_id, artifact_uri=_URI, artifact_sha256="abc",
-               docgen_request_id="req-old")
+    await _set(
+        db_session,
+        invoice_id,
+        artifact_uri=_URI,
+        artifact_sha256="abc",
+        docgen_request_id="req-old",
+    )
 
     resp = await client.post(
         f"/invoices/{invoice_id}/pdf", headers=_admin_headers(), json={"force": True}
@@ -319,8 +342,9 @@ async def test_delete_pdf_blocked_when_sent(client, db_session):
     _cid, _member, invoice = await _seed_single(client, db_session)
     invoice_id = invoice["id"]
     await _issue(client, invoice_id)
-    await _set(db_session, invoice_id, artifact_uri=_URI, artifact_sha256="abc",
-               status=InvoiceStatus.SENT)
+    await _set(
+        db_session, invoice_id, artifact_uri=_URI, artifact_sha256="abc", status=InvoiceStatus.SENT
+    )
 
     resp = await client.delete(f"/invoices/{invoice_id}/pdf", headers=_admin_headers())
     assert resp.status_code == 409
@@ -329,9 +353,7 @@ async def test_delete_pdf_blocked_when_sent(client, db_session):
 
 async def test_delete_pdf_requires_manager(client, db_session):
     _cid, _member, invoice = await _seed_single(client, db_session)
-    resp = await client.delete(
-        f"/invoices/{invoice['id']}/pdf", headers=_member_headers("someone")
-    )
+    resp = await client.delete(f"/invoices/{invoice['id']}/pdf", headers=_member_headers("someone"))
     assert resp.json()["error_code"] == 2  # AUTH.FORBIDDEN (min-role gate)
 
 
@@ -357,8 +379,13 @@ async def test_issue_clears_prior_proforma_artifact(client, db_session):
     _cid, _member, invoice = await _seed_single(client, db_session)
     invoice_id = invoice["id"]
     # A proforma PDF was rendered while the invoice was a draft.
-    await _set(db_session, invoice_id, artifact_uri=_URI, artifact_sha256="draft",
-               docgen_request_id="proforma-req")
+    await _set(
+        db_session,
+        invoice_id,
+        artifact_uri=_URI,
+        artifact_sha256="draft",
+        docgen_request_id="proforma-req",
+    )
 
     await _issue(client, invoice_id)
 
@@ -411,8 +438,9 @@ async def test_docgen_success_recovers_render_failed(client, db_session):
     invoice_id = invoice["id"]
     await _issue(client, invoice_id)
     # Simulate a prior permanent failure that has since been re-requested.
-    await _set(db_session, invoice_id, status=InvoiceStatus.RENDER_FAILED,
-               docgen_request_id="retry-req")
+    await _set(
+        db_session, invoice_id, status=InvoiceStatus.RENDER_FAILED, docgen_request_id="retry-req"
+    )
 
     outcome = await docgen_results.process_docgen_result(
         {

@@ -49,12 +49,21 @@ async def _seed_run_and_draft(client, db_session) -> tuple[int, dict]:
     await f.create_individual(db_session, id_member=member, email="alice@example.be")
     await f.create_meter(db_session, ean="EAN-C", id_community=cid)
     await f.create_meter_data(
-        db_session, ean="EAN-C", id_community=cid, id_sharing_operation=op,
-        id_member=member, client_type=1, start_date=datetime.date(2026, 1, 1),
+        db_session,
+        ean="EAN-C",
+        id_community=cid,
+        id_sharing_operation=op,
+        id_member=member,
+        client_type=1,
+        start_date=datetime.date(2026, 1, 1),
     )
     await f.create_meter_consumption(
-        db_session, ean="EAN-C", id_community=cid, id_sharing_operation=op,
-        timestamp=f.june(5), shared=30.0,
+        db_session,
+        ean="EAN-C",
+        id_community=cid,
+        id_sharing_operation=op,
+        timestamp=f.june(5),
+        shared=30.0,
     )
     resp = await client.post(
         f"/sharing-operations/{op}/tariffs",

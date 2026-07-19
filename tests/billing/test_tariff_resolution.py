@@ -40,22 +40,31 @@ async def test_resolve_price_precedence(db_session):
 
         # EAN-1 + segment 2 → EAN wins.
         got = await repo.resolve_price(
-            id_sharing_operation=op, kind=TariffKind.CONSUMER_SELLING,
-            ean="EAN-1", client_type=2, on_date=_JUN,
+            id_sharing_operation=op,
+            kind=TariffKind.CONSUMER_SELLING,
+            ean="EAN-1",
+            client_type=2,
+            on_date=_JUN,
         )
         assert got is not None and got.price_per_kwh == Decimal("0.30")
 
         # EAN-2 (no EAN tariff) + segment 2 → SEGMENT wins.
         got = await repo.resolve_price(
-            id_sharing_operation=op, kind=TariffKind.CONSUMER_SELLING,
-            ean="EAN-2", client_type=2, on_date=_JUN,
+            id_sharing_operation=op,
+            kind=TariffKind.CONSUMER_SELLING,
+            ean="EAN-2",
+            client_type=2,
+            on_date=_JUN,
         )
         assert got is not None and got.price_per_kwh == Decimal("0.20")
 
         # EAN-2 + segment 1 (no segment tariff) → GLOBAL.
         got = await repo.resolve_price(
-            id_sharing_operation=op, kind=TariffKind.CONSUMER_SELLING,
-            ean="EAN-2", client_type=1, on_date=_JUN,
+            id_sharing_operation=op,
+            kind=TariffKind.CONSUMER_SELLING,
+            ean="EAN-2",
+            client_type=1,
+            on_date=_JUN,
         )
         assert got is not None and got.price_per_kwh == Decimal("0.10")
     finally:
@@ -73,16 +82,22 @@ async def test_resolve_price_none_when_no_tariff_or_outside_window(db_session):
         # Wrong kind (no producer tariff) → None.
         assert (
             await repo.resolve_price(
-                id_sharing_operation=op, kind=TariffKind.PRODUCER_BUYBACK,
-                ean="EAN-2", client_type=1, on_date=_JUN,
+                id_sharing_operation=op,
+                kind=TariffKind.PRODUCER_BUYBACK,
+                ean="EAN-2",
+                client_type=1,
+                on_date=_JUN,
             )
             is None
         )
         # Before valid_from → None.
         assert (
             await repo.resolve_price(
-                id_sharing_operation=op, kind=TariffKind.CONSUMER_SELLING,
-                ean="EAN-2", client_type=1, on_date=datetime.date(2025, 12, 31),
+                id_sharing_operation=op,
+                kind=TariffKind.CONSUMER_SELLING,
+                ean="EAN-2",
+                client_type=1,
+                on_date=datetime.date(2025, 12, 31),
             )
             is None
         )

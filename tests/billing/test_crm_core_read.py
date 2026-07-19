@@ -29,12 +29,21 @@ async def test_aggregate_by_ean_member_sums_and_counts(db_session):
     await f.create_meter(db_session, ean="EAN-A", id_community=cid)
     await f.create_meter(db_session, ean="EAN-B", id_community=cid)
     await f.create_meter_data(
-        db_session, ean="EAN-A", id_community=cid, id_sharing_operation=op,
-        id_member=m_a, client_type=2, start_date=datetime.date(2026, 1, 1),
+        db_session,
+        ean="EAN-A",
+        id_community=cid,
+        id_sharing_operation=op,
+        id_member=m_a,
+        client_type=2,
+        start_date=datetime.date(2026, 1, 1),
     )
     await f.create_meter_data(
-        db_session, ean="EAN-B", id_community=cid, id_sharing_operation=op,
-        id_member=m_b, start_date=datetime.date(2026, 1, 1),
+        db_session,
+        ean="EAN-B",
+        id_community=cid,
+        id_sharing_operation=op,
+        id_member=m_b,
+        start_date=datetime.date(2026, 1, 1),
     )
 
     for day, shared in [(5, 1.0), (10, 2.0), (15, 3.0)]:
@@ -86,14 +95,24 @@ async def test_aggregate_mid_month_transfer_splits_by_owner(db_session):
     m_b = await f.create_member(db_session, id_community=cid, name="B")
     await f.create_meter(db_session, ean="EAN-T", id_community=cid)
     await f.create_meter_data(
-        db_session, ean="EAN-T", id_community=cid, id_sharing_operation=op,
-        id_member=m_a, client_type=1,
-        start_date=datetime.date(2026, 6, 1), end_date=datetime.date(2026, 6, 15),
+        db_session,
+        ean="EAN-T",
+        id_community=cid,
+        id_sharing_operation=op,
+        id_member=m_a,
+        client_type=1,
+        start_date=datetime.date(2026, 6, 1),
+        end_date=datetime.date(2026, 6, 15),
     )
     await f.create_meter_data(
-        db_session, ean="EAN-T", id_community=cid, id_sharing_operation=op,
-        id_member=m_b, client_type=2,
-        start_date=datetime.date(2026, 6, 16), end_date=None,
+        db_session,
+        ean="EAN-T",
+        id_community=cid,
+        id_sharing_operation=op,
+        id_member=m_b,
+        client_type=2,
+        start_date=datetime.date(2026, 6, 16),
+        end_date=None,
     )
 
     for ts, shared in [
@@ -106,8 +125,12 @@ async def test_aggregate_mid_month_transfer_splits_by_owner(db_session):
         (f.june(20), 16.0),
     ]:
         await f.create_meter_consumption(
-            db_session, ean="EAN-T", id_community=cid, id_sharing_operation=op,
-            timestamp=ts, shared=shared,
+            db_session,
+            ean="EAN-T",
+            id_community=cid,
+            id_sharing_operation=op,
+            timestamp=ts,
+            shared=shared,
         )
 
     port = SqlAlchemyCrmCoreRead(db_session)
@@ -134,16 +157,28 @@ async def test_aggregate_orphan_volume_grouped_under_null_member(db_session):
     await f.create_meter(db_session, ean="EAN-O", id_community=cid)
     # Ownership only starts mid-month: earlier readings belong to nobody.
     await f.create_meter_data(
-        db_session, ean="EAN-O", id_community=cid, id_sharing_operation=op,
-        id_member=m, start_date=datetime.date(2026, 6, 16),
+        db_session,
+        ean="EAN-O",
+        id_community=cid,
+        id_sharing_operation=op,
+        id_member=m,
+        start_date=datetime.date(2026, 6, 16),
     )
     await f.create_meter_consumption(
-        db_session, ean="EAN-O", id_community=cid, id_sharing_operation=op,
-        timestamp=f.june(5), shared=3.0,
+        db_session,
+        ean="EAN-O",
+        id_community=cid,
+        id_sharing_operation=op,
+        timestamp=f.june(5),
+        shared=3.0,
     )
     await f.create_meter_consumption(
-        db_session, ean="EAN-O", id_community=cid, id_sharing_operation=op,
-        timestamp=f.june(20), shared=5.0,
+        db_session,
+        ean="EAN-O",
+        id_community=cid,
+        id_sharing_operation=op,
+        timestamp=f.june(20),
+        shared=5.0,
     )
 
     port = SqlAlchemyCrmCoreRead(db_session)
@@ -163,24 +198,43 @@ async def test_aggregate_rejoin_merges_single_group_latest_client_type(db_sessio
     await f.create_meter(db_session, ean="EAN-R", id_community=cid)
     # A owns, hands over to B, then re-acquires with a different client_type.
     await f.create_meter_data(
-        db_session, ean="EAN-R", id_community=cid, id_sharing_operation=op,
-        id_member=m_a, client_type=1,
-        start_date=datetime.date(2026, 6, 1), end_date=datetime.date(2026, 6, 10),
+        db_session,
+        ean="EAN-R",
+        id_community=cid,
+        id_sharing_operation=op,
+        id_member=m_a,
+        client_type=1,
+        start_date=datetime.date(2026, 6, 1),
+        end_date=datetime.date(2026, 6, 10),
     )
     await f.create_meter_data(
-        db_session, ean="EAN-R", id_community=cid, id_sharing_operation=op,
-        id_member=m_b, client_type=1,
-        start_date=datetime.date(2026, 6, 11), end_date=datetime.date(2026, 6, 20),
+        db_session,
+        ean="EAN-R",
+        id_community=cid,
+        id_sharing_operation=op,
+        id_member=m_b,
+        client_type=1,
+        start_date=datetime.date(2026, 6, 11),
+        end_date=datetime.date(2026, 6, 20),
     )
     await f.create_meter_data(
-        db_session, ean="EAN-R", id_community=cid, id_sharing_operation=op,
-        id_member=m_a, client_type=2,
-        start_date=datetime.date(2026, 6, 21), end_date=None,
+        db_session,
+        ean="EAN-R",
+        id_community=cid,
+        id_sharing_operation=op,
+        id_member=m_a,
+        client_type=2,
+        start_date=datetime.date(2026, 6, 21),
+        end_date=None,
     )
     for ts, shared in [(f.june(5), 1.0), (f.june(15), 2.0), (f.june(25), 4.0)]:
         await f.create_meter_consumption(
-            db_session, ean="EAN-R", id_community=cid, id_sharing_operation=op,
-            timestamp=ts, shared=shared,
+            db_session,
+            ean="EAN-R",
+            id_community=cid,
+            id_sharing_operation=op,
+            timestamp=ts,
+            shared=shared,
         )
 
     port = SqlAlchemyCrmCoreRead(db_session)
@@ -200,8 +254,12 @@ async def test_duplicate_rows_flagged(db_session):
     m = await f.create_member(db_session, id_community=cid)
     await f.create_meter(db_session, ean="EAN-D", id_community=cid)
     await f.create_meter_data(
-        db_session, ean="EAN-D", id_community=cid, id_sharing_operation=op,
-        id_member=m, start_date=datetime.date(2026, 1, 1),
+        db_session,
+        ean="EAN-D",
+        id_community=cid,
+        id_sharing_operation=op,
+        id_member=m,
+        start_date=datetime.date(2026, 1, 1),
     )
     ts = f.june(9)
     await f.create_meter_consumption(
@@ -256,8 +314,12 @@ async def test_aggregate_ignores_windows_outside_period(db_session):
     for ean in ("EAN-IN", "EAN-ENDED", "EAN-FUTURE"):
         await f.create_meter(db_session, ean=ean, id_community=cid)
         await f.create_meter_consumption(
-            db_session, ean=ean, id_community=cid, id_sharing_operation=op,
-            timestamp=f.june(10), shared=1.0,
+            db_session,
+            ean=ean,
+            id_community=cid,
+            id_sharing_operation=op,
+            timestamp=f.june(10),
+            shared=1.0,
         )
 
     await f.create_meter_data(
@@ -308,12 +370,22 @@ async def test_find_ownership_overlaps_detects_in_period_overlap(db_session):
     m_b = await f.create_member(db_session, id_community=cid)
     await f.create_meter(db_session, ean="EAN-OVL", id_community=cid)
     await f.create_meter_data(
-        db_session, ean="EAN-OVL", id_community=cid, id_sharing_operation=op,
-        id_member=m_a, start_date=datetime.date(2026, 6, 1), end_date=datetime.date(2026, 6, 20),
+        db_session,
+        ean="EAN-OVL",
+        id_community=cid,
+        id_sharing_operation=op,
+        id_member=m_a,
+        start_date=datetime.date(2026, 6, 1),
+        end_date=datetime.date(2026, 6, 20),
     )
     await f.create_meter_data(
-        db_session, ean="EAN-OVL", id_community=cid, id_sharing_operation=op,
-        id_member=m_b, start_date=datetime.date(2026, 6, 15), end_date=None,
+        db_session,
+        ean="EAN-OVL",
+        id_community=cid,
+        id_sharing_operation=op,
+        id_member=m_b,
+        start_date=datetime.date(2026, 6, 15),
+        end_date=None,
     )
 
     port = SqlAlchemyCrmCoreRead(db_session)
@@ -331,12 +403,22 @@ async def test_find_ownership_overlaps_ignores_adjacent_windows(db_session):
     await f.create_meter(db_session, ean="EAN-ADJ", id_community=cid)
     # end_date = next start_date - 1: a clean hand-over, no overlap.
     await f.create_meter_data(
-        db_session, ean="EAN-ADJ", id_community=cid, id_sharing_operation=op,
-        id_member=m_a, start_date=datetime.date(2026, 6, 1), end_date=datetime.date(2026, 6, 15),
+        db_session,
+        ean="EAN-ADJ",
+        id_community=cid,
+        id_sharing_operation=op,
+        id_member=m_a,
+        start_date=datetime.date(2026, 6, 1),
+        end_date=datetime.date(2026, 6, 15),
     )
     await f.create_meter_data(
-        db_session, ean="EAN-ADJ", id_community=cid, id_sharing_operation=op,
-        id_member=m_b, start_date=datetime.date(2026, 6, 16), end_date=None,
+        db_session,
+        ean="EAN-ADJ",
+        id_community=cid,
+        id_sharing_operation=op,
+        id_member=m_b,
+        start_date=datetime.date(2026, 6, 16),
+        end_date=None,
     )
 
     port = SqlAlchemyCrmCoreRead(db_session)
@@ -357,22 +439,43 @@ async def test_find_ownership_overlaps_ignores_out_of_period_and_inactive(db_ses
     # Overlap fully before June → irrelevant for a June run.
     await f.create_meter(db_session, ean="EAN-PAST", id_community=cid)
     await f.create_meter_data(
-        db_session, ean="EAN-PAST", id_community=cid, id_sharing_operation=op,
-        id_member=m_a, start_date=datetime.date(2026, 1, 1), end_date=datetime.date(2026, 2, 15),
+        db_session,
+        ean="EAN-PAST",
+        id_community=cid,
+        id_sharing_operation=op,
+        id_member=m_a,
+        start_date=datetime.date(2026, 1, 1),
+        end_date=datetime.date(2026, 2, 15),
     )
     await f.create_meter_data(
-        db_session, ean="EAN-PAST", id_community=cid, id_sharing_operation=op,
-        id_member=m_b, start_date=datetime.date(2026, 2, 10), end_date=datetime.date(2026, 2, 28),
+        db_session,
+        ean="EAN-PAST",
+        id_community=cid,
+        id_sharing_operation=op,
+        id_member=m_b,
+        start_date=datetime.date(2026, 2, 10),
+        end_date=datetime.date(2026, 2, 28),
     )
     # In-period overlap but one window is not ACTIVE → ignored.
     await f.create_meter(db_session, ean="EAN-INACT", id_community=cid)
     await f.create_meter_data(
-        db_session, ean="EAN-INACT", id_community=cid, id_sharing_operation=op,
-        id_member=m_a, start_date=datetime.date(2026, 6, 1), end_date=None,
+        db_session,
+        ean="EAN-INACT",
+        id_community=cid,
+        id_sharing_operation=op,
+        id_member=m_a,
+        start_date=datetime.date(2026, 6, 1),
+        end_date=None,
     )
     await f.create_meter_data(
-        db_session, ean="EAN-INACT", id_community=cid, id_sharing_operation=op,
-        id_member=m_b, status=2, start_date=datetime.date(2026, 6, 10), end_date=None,
+        db_session,
+        ean="EAN-INACT",
+        id_community=cid,
+        id_sharing_operation=op,
+        id_member=m_b,
+        status=2,
+        start_date=datetime.date(2026, 6, 10),
+        end_date=None,
     )
 
     port = SqlAlchemyCrmCoreRead(db_session)

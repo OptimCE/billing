@@ -187,9 +187,7 @@ class BillingRepository:
             update(BillingRunModel)
             .where(
                 BillingRunModel.id == run_id,
-                BillingRunModel.status.in_(
-                    [BillingRunStatus.PENDING, BillingRunStatus.COMPUTING]
-                ),
+                BillingRunModel.status.in_([BillingRunStatus.PENDING, BillingRunStatus.COMPUTING]),
             )
             .values(status=BillingRunStatus.COMPUTING)
         )
@@ -210,9 +208,9 @@ class BillingRepository:
         await self._session.flush()
 
     async def list_snapshots(self, run_id: int) -> list[SettlementSnapshotModel]:
-        stmt = with_community_scope(
-            select(SettlementSnapshotModel), SettlementSnapshotModel
-        ).where(SettlementSnapshotModel.id_billing_run == run_id)
+        stmt = with_community_scope(select(SettlementSnapshotModel), SettlementSnapshotModel).where(
+            SettlementSnapshotModel.id_billing_run == run_id
+        )
         return list((await self._session.execute(stmt)).scalars().all())
 
     # ---- invoices ----------------------------------------------------------
@@ -451,10 +449,14 @@ class BillingRepository:
 
         total = int((await self._session.execute(count_base)).scalar_one())
         rows = (
-            await self._session.execute(
-                base.order_by(*_invoice_order_by(sort, order)).limit(limit).offset(offset)
+            (
+                await self._session.execute(
+                    base.order_by(*_invoice_order_by(sort, order)).limit(limit).offset(offset)
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         return list(rows), total
 
     async def list_invoices_for_members(
@@ -490,8 +492,12 @@ class BillingRepository:
 
         total = int((await self._session.execute(count_base)).scalar_one())
         rows = (
-            await self._session.execute(
-                base.order_by(*_invoice_order_by(sort, order)).limit(limit).offset(offset)
+            (
+                await self._session.execute(
+                    base.order_by(*_invoice_order_by(sort, order)).limit(limit).offset(offset)
+                )
             )
-        ).scalars().all()
+            .scalars()
+            .all()
+        )
         return list(rows), total

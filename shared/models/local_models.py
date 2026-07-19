@@ -261,9 +261,7 @@ class CreditNoteModel(LocalBase):
 
     __tablename__ = "credit_note"
     __table_args__ = (
-        UniqueConstraint(
-            "id_original_invoice", "id_credit_invoice", name="uq_credit_note_pair"
-        ),
+        UniqueConstraint("id_original_invoice", "id_credit_invoice", name="uq_credit_note_pair"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)

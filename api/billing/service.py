@@ -138,9 +138,7 @@ class BillingService:
 
         identity = await self._crm_read.get_community_identity(id_community=cid)
         if identity is None:
-            raise ErrorException(
-                errors.billing.COMMUNITY_BILLING_INFO_INCOMPLETE, status_code=422
-            )
+            raise ErrorException(errors.billing.COMMUNITY_BILLING_INFO_INCOMPLETE, status_code=422)
         try:
             self._registry.get_for(identity.regulator)
         except RegimeConfigError as exc:
@@ -172,9 +170,7 @@ class BillingService:
         if any(agg.has_duplicate_rows for agg in aggregates):
             raise ErrorException(errors.billing.DOUBLE_IMPORT_DETECTED, status_code=422)
         if not identity.has_billing_info:
-            raise ErrorException(
-                errors.billing.COMMUNITY_BILLING_INFO_INCOMPLETE, status_code=422
-            )
+            raise ErrorException(errors.billing.COMMUNITY_BILLING_INFO_INCOMPLETE, status_code=422)
 
         has_consumer = any(agg.shared_sum > 0 for agg in aggregates)
         has_producer = any(agg.inj_shared_sum > 0 for agg in aggregates)
@@ -212,9 +208,7 @@ class BillingService:
             owned_from = owned_to = None
             if agg.id_member is not None and agg.owned_from is not None:
                 clamp_from = max(agg.owned_from, period_start)
-                clamp_to = (
-                    min(agg.owned_to, period_end) if agg.owned_to is not None else period_end
-                )
+                clamp_to = min(agg.owned_to, period_end) if agg.owned_to is not None else period_end
                 if (clamp_from, clamp_to) != (period_start, period_end):
                     owned_from, owned_to = clamp_from, clamp_to
             if agg.id_member is None and (agg.shared_sum > 0 or agg.inj_shared_sum > 0):
@@ -316,9 +310,7 @@ class BillingService:
 
         identity = await self._crm_read.get_community_identity(id_community=cid)
         if identity is None:
-            raise ErrorException(
-                errors.billing.COMMUNITY_BILLING_INFO_INCOMPLETE, status_code=422
-            )
+            raise ErrorException(errors.billing.COMMUNITY_BILLING_INFO_INCOMPLETE, status_code=422)
         try:
             regime = self._registry.get_for(identity.regulator)
         except RegimeConfigError as exc:
@@ -500,17 +492,12 @@ class BillingService:
             raise ErrorException(errors.billing.INVOICE_NOT_FOUND, status_code=404)
         # Only an issued consumer invoice can be credited (a DRAFT is deleted, not
         # credited; a credit note isn't itself creditable).
-        if (
-            original.doc_type != InvoiceType.INVOICE
-            or original.status == InvoiceStatus.DRAFT
-        ):
+        if original.doc_type != InvoiceType.INVOICE or original.status == InvoiceStatus.DRAFT:
             raise ErrorException(errors.billing.CREDIT_NOTE_TARGET_INVALID, status_code=409)
 
         identity = await self._crm_read.get_community_identity(id_community=cid)
         if identity is None:
-            raise ErrorException(
-                errors.billing.COMMUNITY_BILLING_INFO_INCOMPLETE, status_code=422
-            )
+            raise ErrorException(errors.billing.COMMUNITY_BILLING_INFO_INCOMPLETE, status_code=422)
         try:
             regime = self._registry.get_for(identity.regulator)
         except RegimeConfigError as exc:

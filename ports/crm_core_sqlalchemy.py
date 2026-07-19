@@ -272,9 +272,7 @@ class SqlAlchemyCrmCoreRead:
             )
         return contacts
 
-    async def member_ids_for_user(
-        self, *, id_community: int, auth_user_id: str
-    ) -> list[int]:
+    async def member_ids_for_user(self, *, id_community: int, auth_user_id: str) -> list[int]:
         """The member id(s) the authenticated user represents in this community."""
         result = await self._session.execute(
             text(

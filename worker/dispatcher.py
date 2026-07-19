@@ -51,9 +51,7 @@ _DOCGEN_RETRY_MAX_DELAY_SECONDS = 30
 _DOCGEN_RETRY_MAX_ATTEMPTS = 40
 
 
-async def subscribe_all(
-    js: JetStreamContext, *, inflight: set[asyncio.Task] | None = None
-) -> list:
+async def subscribe_all(js: JetStreamContext, *, inflight: set[asyncio.Task] | None = None) -> list:
     """Register the billing durable consumers. Returns their subscriptions."""
     subs = [
         await js.subscribe(
@@ -81,16 +79,12 @@ async def subscribe_all(
         subs.append(await docgen_results.subscribe(js))
         logger.info("Subscribed docgen results consumer")
     except Exception as exc:
-        logger.warning(
-            "docgen results not ready (%s); retrying attach in the background", exc
-        )
+        logger.warning("docgen results not ready (%s); retrying attach in the background", exc)
         _spawn_docgen_result_retry(js, inflight=inflight)
     return subs
 
 
-def _spawn_docgen_result_retry(
-    js: JetStreamContext, *, inflight: set[asyncio.Task] | None
-) -> None:
+def _spawn_docgen_result_retry(js: JetStreamContext, *, inflight: set[asyncio.Task] | None) -> None:
     """Background-retry the docgen-results subscription until it succeeds.
 
     The subscription is not appended to the caller's drain list — mutating that
