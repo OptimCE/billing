@@ -10,6 +10,7 @@ the owning row by PK to discover the tenant before context is set.
 from __future__ import annotations
 
 import datetime
+from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any
 
@@ -40,6 +41,19 @@ _INVOICE_SORT_COLUMNS: dict[str, InstrumentedAttribute[Any]] = {
     "number": InvoiceModel.number,
     "status": InvoiceModel.status,
 }
+
+
+@dataclass(frozen=True, slots=True)
+class SweptInvoice:
+    """The identity of one invoice the overdue sweep flipped.
+
+    Just enough to address a notification at the member it bills — the sweep is a
+    bulk UPDATE and never loads the ORM instances.
+    """
+
+    id: int
+    id_member: int
+    number: str | None
 
 
 def _invoice_order_by(sort: str | None, order: str | None) -> list[Any]:
@@ -348,8 +362,15 @@ class BillingRepository:
             .values(status=InvoiceStatus.PAID, paid_at=paid_at)
         )
 
-    async def sweep_overdue(self, today: datetime.date) -> int:
-        """Mark community-scoped ISSUED/SENT invoices past due as OVERDUE. Returns count."""
+    async def sweep_overdue(self, today: datetime.date) -> list[SweptInvoice]:
+        """Mark community-scoped ISSUED/SENT invoices past due as OVERDUE.
+
+        Returns the affected rows rather than a count, because each one has to be
+        notified to the member it bills. ``synchronize_session=False`` is
+        required, not stylistic: an explicit ``.returning()`` conflicts with the
+        default session-synchronisation strategy, and the ORM identity map is not
+        used on this path.
+        """
         result = await self._session.execute(
             update(InvoiceModel)
             .where(
@@ -358,8 +379,12 @@ class BillingRepository:
                 InvoiceModel.due_date < today,
             )
             .values(status=InvoiceStatus.OVERDUE)
+            .returning(InvoiceModel.id, InvoiceModel.id_member, InvoiceModel.number)
+            .execution_options(synchronize_session=False)
         )
-        return int(result.rowcount)
+        return [
+            SweptInvoice(id=row.id, id_member=row.id_member, number=row.number) for row in result
+        ]
 
     # ---- payments ----------------------------------------------------------
     async def add_payment(self, payment: PaymentModel) -> PaymentModel:

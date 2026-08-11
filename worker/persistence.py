@@ -16,6 +16,14 @@ from api.billing.repository import BillingRepository
 from core import metrics as app_metrics
 from core.audit_log import AuditActions, AuditLogInput, AuditLogService
 from core.database.database import AsyncSessionCRMFactory, AsyncSessionLocalFactory
+from core.notifications import (
+    MANAGER_ROLES,
+    Channel,
+    CommunityTarget,
+    NotificationCategory,
+    NotificationService,
+    NotificationTypes,
+)
 from regime.registry import RegimeConfigError, get_registry
 from shared.const import BillingDirection, BillingRunStatus, TariffKind
 from shared.models.local_models import BillingRunModel
@@ -108,6 +116,18 @@ async def process_billing_run(
                 payload={"invoice_count": count},
             ),
             id_community=run.id_community,
+        )
+        # Same CRM transaction as the audit row. `with_tenant` has already exited
+        # here, so the community is passed explicitly — exactly as the audit call
+        # above does, and core/notifications never reads a ContextVar. Redelivery
+        # safety is free: both early-return paths return from inside the
+        # `with_tenant` block, skipping the audit and this notification alike.
+        await NotificationService(crm).publish(
+            type=NotificationTypes.BILLING_RUN_COMPLETED,
+            target=CommunityTarget(community_id=run.id_community, roles=MANAGER_ROLES),
+            category=NotificationCategory.INFORMATIONAL,
+            channels=(Channel.INAPP,),
+            data={"run_id": run_id, "invoice_count": count},
         )
         if own_crm:
             await crm.commit()

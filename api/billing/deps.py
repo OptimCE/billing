@@ -12,17 +12,15 @@ from core.config import settings
 from core.database.database import get_crm_session, get_local_session
 from ports.crm_core_sqlalchemy import SqlAlchemyCrmCoreRead
 from ports.email import EmailPort
-from ports.email_noop import NoopEmailAdapter
-from ports.events import EventPublisher, NatsEventPublisher
+from ports.events import EventPublisher
+
+# Which adapter backs each port is decided in `ports/providers.py`, not here, so
+# the worker can make the same choice without importing fastapi. Re-exported
+# because `dependency_overrides[deps.get_event_publisher]` keys on this object.
+from ports.providers import get_email_port, get_event_publisher
 from regime.registry import get_registry
 
-
-def get_event_publisher() -> EventPublisher:
-    return NatsEventPublisher()
-
-
-def get_email_port() -> EmailPort:
-    return NoopEmailAdapter()
+__all__ = ["get_billing_service", "get_email_port", "get_event_publisher"]
 
 
 def get_billing_service(

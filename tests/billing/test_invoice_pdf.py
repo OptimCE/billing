@@ -458,3 +458,75 @@ async def test_docgen_success_recovers_render_failed(client, db_session):
     fresh = await db_session.get(InvoiceModel, invoice_id)
     assert fresh.status == InvoiceStatus.ISSUED  # recovered from RENDER_FAILED
     assert fresh.artifact_uri == _URI
+
+
+# ---------------------------------------------------------------------------
+# Wire-contract regression: the docgen result has NO top-level tenant_id.
+#
+# document-generation's GenerationResult is extra="forbid" and declares exactly
+# {request_id, status, artifacts, error, template_version, generated_at, metadata}
+# -- tenant_id exists only on the *request*. Every test above hand-builds a body
+# with a top-level tenant_id the service never emits, so they all passed while
+# production dropped every real result and no invoice PDF ever attached.
+# ---------------------------------------------------------------------------
+
+
+def _wire_result(request_id: str, cid: int, **overrides) -> dict:
+    """A body shaped exactly like ``GenerationResult.to_json_bytes()`` output.
+
+    Note the absence of a top-level ``tenant_id``: the tenant round-trips only
+    through ``metadata``, which document-generation echoes verbatim.
+    """
+    body = {
+        "request_id": request_id,
+        "status": "success",
+        "artifacts": [{"format": "pdf", "uri": _URI, "size_bytes": 1234, "sha256": "ok"}],
+        "template_version": "1.0.0",
+        "generated_at": "2026-07-26T10:00:00Z",
+        "metadata": {"invoice_id": 1, "tenant_id": str(cid)},
+    }
+    body.update(overrides)
+    return body
+
+
+async def test_issue_puts_tenant_id_in_metadata(client, db_session):
+    """The request half of the contract: without this the result cannot be routed."""
+    cid, _member, invoice = await _seed_single(client, db_session)
+    await _issue(client, invoice["id"])
+
+    fake = _FakeDocGen()
+    await issue.process_issue(
+        invoice["id"], doc_port=fake, local_session=db_session, crm_session=db_session
+    )
+    assert fake.requests[0].metadata["tenant_id"] == str(cid)
+
+
+async def test_docgen_result_without_top_level_tenant_id_attaches(client, db_session):
+    cid, _member, invoice = await _seed_single(client, db_session)
+    invoice_id = invoice["id"]
+    await _issue(client, invoice_id)
+    await _set(db_session, invoice_id, docgen_request_id="wire-req")
+
+    outcome = await docgen_results.process_docgen_result(
+        _wire_result("wire-req", cid),
+        local_session=db_session,
+        crm_session=db_session,
+    )
+    assert outcome == "attached"
+
+    db_session.expire_all()
+    fresh = await db_session.get(InvoiceModel, invoice_id)
+    assert fresh.artifact_uri == _URI
+
+
+async def test_docgen_result_with_neither_tenant_source_drops(client, db_session):
+    _cid, _member, invoice = await _seed_single(client, db_session)
+    await _issue(client, invoice["id"])
+    await _set(db_session, invoice["id"], docgen_request_id="no-tenant-req")
+
+    outcome = await docgen_results.process_docgen_result(
+        {"request_id": "no-tenant-req", "status": "success", "artifacts": [], "metadata": {}},
+        local_session=db_session,
+        crm_session=db_session,
+    )
+    assert outcome == "drop"

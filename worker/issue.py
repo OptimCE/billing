@@ -107,7 +107,13 @@ async def process_issue(
                     reply_to=settings.DOCGEN_RESULT_SUBJECT,
                     locale=settings.DEFAULT_LOCALE,
                     presign_ttl=settings.DOCGEN_PRESIGN_TTL,
-                    metadata={"invoice_id": invoice_id},
+                    # tenant_id rides in metadata because that is the ONLY field
+                    # document-generation echoes back: GenerationResult is
+                    # extra="forbid" and declares no tenant_id of its own.
+                    metadata={
+                        "invoice_id": invoice_id,
+                        "tenant_id": str(invoice.id_community),
+                    },
                 )
             )
         return True

@@ -288,3 +288,35 @@ class SqlAlchemyCrmCoreRead:
             {"cid": id_community, "auth_user_id": auth_user_id},
         )
         return [int(row["id"]) for row in result.mappings()]
+
+    async def user_ids_for_members(
+        self, *, id_community: int, member_ids: Sequence[int]
+    ) -> dict[int, list[int]]:
+        """The portal user(s) each member is represented by, keyed by member id.
+
+        The reverse of ``member_ids_for_user``, used to address an invoice
+        notification to the member it bills. Batched because the overdue sweep
+        notifies every invoice it flips in one pass.
+
+        A member with no linked account (a company invoiced on paper) is simply
+        absent from the result. That is not an error — the caller notifies
+        nobody and carries on.
+        """
+        if not member_ids:
+            return {}
+        result = await self._session.execute(
+            text(
+                """
+                SELECT DISTINCT m.id AS id_member, uml.id_user AS id_user
+                FROM member m
+                JOIN user_member_link uml ON uml.id_member = m.id
+                WHERE m.id_community = :cid AND m.id IN :ids
+                ORDER BY m.id, uml.id_user
+                """
+            ).bindparams(bindparam("ids", expanding=True)),
+            {"cid": id_community, "ids": list(member_ids)},
+        )
+        by_member: dict[int, list[int]] = {}
+        for row in result.mappings():
+            by_member.setdefault(int(row["id_member"]), []).append(int(row["id_user"]))
+        return by_member

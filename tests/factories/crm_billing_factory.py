@@ -306,6 +306,18 @@ async def link_user_to_member(session: AsyncSession, *, id_user: int, id_member:
     )
 
 
+async def add_community_member(
+    session: AsyncSession, *, id_community: int, id_user: int, role: str = "MEMBER"
+) -> None:
+    """A CRM community_user row — the roster a manager-targeted fan-out reads."""
+    await session.execute(
+        text(
+            "INSERT INTO community_user (id_community, id_user, role) " "VALUES (:cid, :uid, :role)"
+        ),
+        {"cid": id_community, "uid": id_user, "role": role},
+    )
+
+
 def june(day: int, hour: int = 12) -> datetime.datetime:
     """A tz-aware June 2026 instant (Brussels), for consumption timestamps."""
     from zoneinfo import ZoneInfo

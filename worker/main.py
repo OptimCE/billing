@@ -26,6 +26,7 @@ from core.queue.init import close_nats, get_jetstream, init_nats
 from core.tracing import setup_tracer_provider
 from regime.registry import assert_regime_parity
 from worker import dispatcher
+from worker.scheduler import run_overdue_scheduler
 
 logger = logging.getLogger(__name__)
 
@@ -104,9 +105,17 @@ async def main() -> None:
     inflight: set[asyncio.Task] = set()
     subs: list = []
     heartbeat_task: asyncio.Task | None = None
+    scheduler_task: asyncio.Task | None = None
     try:
         subs = await dispatcher.subscribe_all(js, inflight=inflight)
         heartbeat_task = asyncio.create_task(_heartbeat(shutdown_event), name="heartbeat")
+        # The overdue sweep. It lives here rather than behind a cron container
+        # because it needs the service, its two sessions and the tenant
+        # ContextVar — all of which this process already has. An advisory lock
+        # inside makes a second replica a no-op.
+        scheduler_task = asyncio.create_task(
+            run_overdue_scheduler(shutdown_event), name="overdue-scheduler"
+        )
 
         logger.info("Billing worker ready — listening on the billing queues")
         await shutdown_event.wait()
@@ -116,6 +125,11 @@ async def main() -> None:
             heartbeat_task.cancel()
             with contextlib.suppress(asyncio.CancelledError, Exception):
                 await heartbeat_task
+
+        if scheduler_task is not None:
+            scheduler_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError, Exception):
+                await scheduler_task
 
         # Let in-flight handlers finish + ack while NATS is still up. Stragglers
         # redeliver after ack_wait (the persistence idempotency guard makes that
