@@ -34,6 +34,13 @@ from core.context_vars import (
     current_user_role,
 )
 from core.errors.errors import ErrorException
+from core.notifications import (
+    Channel,
+    NotificationCategory,
+    NotificationService,
+    NotificationTypes,
+    UsersTarget,
+)
 from core.queue.helper import Event
 from core.security.user_context import ROLE_HIERARCHY, Role
 from core.storage import client as storage
@@ -88,6 +95,7 @@ class BillingService:
         self._publisher = publisher
         self._email = email
         self._audit = audit
+        self._notify = NotificationService(crm_session)
         self._settings = settings
 
     def _community(self) -> int:
@@ -361,6 +369,27 @@ class BillingService:
             ),
             id_community=cid,
         )
+        # Same CRM transaction as the audit row: both land or neither does.
+        # `data` holds JSON primitives only — it goes into a JSONB column, so the
+        # Decimal total and the date have to be strings.
+        by_member = await self._crm_read.user_ids_for_members(
+            id_community=cid, member_ids=[invoice.id_member]
+        )
+        await self._notify.publish(
+            type=NotificationTypes.INVOICE_ISSUED,
+            target=UsersTarget(user_ids=by_member.get(invoice.id_member, []), community_id=cid),
+            category=NotificationCategory.TRANSACTIONAL,
+            channels=(Channel.INAPP, Channel.EMAIL),
+            data={
+                "invoice_id": invoice_id,
+                # Read from the locals, not from `invoice`: mark_issued is a bare
+                # UPDATE, so the loaded instance still says DRAFT with no number.
+                "number": number,
+                "due_date": due_date.isoformat(),
+                "total": str(invoice.total),
+                "currency": invoice.currency,
+            },
+        )
         await self._crm.commit()
         app_metrics.invoices_issued.add(1)
 
@@ -479,11 +508,39 @@ class BillingService:
         return [mappers.payment_to_out(payment) for payment in payments]
 
     async def sweep_overdue(self) -> OverdueSweepOut:
-        self._community()
+        cid = self._community()
         today = datetime.datetime.now(_SETTLEMENT_TZ).date()
-        marked = await self._repo.sweep_overdue(today)
+        # The UPDATE is staged but NOT committed yet, and the ordering is
+        # load-bearing. `sweep_overdue` is a single UPDATE ... RETURNING over
+        # ISSUED/SENT rows, and nothing ever moves an invoice back — so once the
+        # rows say OVERDUE, no later sweep will ever match them again. Committing
+        # locally first and then swallowing a CRM failure (as this used to do)
+        # therefore loses the notification and its email PERMANENTLY, with
+        # nothing left to re-emit them.
+        #
+        # Committing the CRM side first inverts the failure: a crash between the
+        # two commits leaves the invoices still SENT, the next sweep re-flips and
+        # re-publishes, and `outbound_message.dedupe_key` collapses the duplicate
+        # email at the cost of one duplicate in-app row. That is exactly the
+        # at-least-once trade the dedupe key exists to make.
+        swept = await self._repo.sweep_overdue(today)
+        if swept:
+            by_member = await self._crm_read.user_ids_for_members(
+                id_community=cid, member_ids=[row.id_member for row in swept]
+            )
+            for row in swept:
+                await self._notify.publish(
+                    type=NotificationTypes.INVOICE_OVERDUE,
+                    target=UsersTarget(user_ids=by_member.get(row.id_member, []), community_id=cid),
+                    category=NotificationCategory.TRANSACTIONAL,
+                    channels=(Channel.INAPP, Channel.EMAIL),
+                    data={"invoice_id": row.id, "number": row.number},
+                )
+            # Deliberately unguarded: a CRM failure here must 500 and roll the
+            # local UPDATE back with it, so the sweep can be retried whole.
+            await self._crm.commit()
         await self._local.commit()
-        return OverdueSweepOut(marked=marked)
+        return OverdueSweepOut(marked=len(swept))
 
     async def create_credit_note(self, *, invoice_id: int, body: CreditNoteIn) -> InvoiceOut:
         cid = self._community()

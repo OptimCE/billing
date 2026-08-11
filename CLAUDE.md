@@ -6,9 +6,10 @@ the domain. Full plan: `~/.claude/plans/snappy-mixing-dahl.md`.
 
 ## Layout
 - `api/billing/` — `routes` → `service` (orchestration) → `repository` (owned DB) + `mappers`/`schemas`/`deps`.
-- `ports/` — `crm_core*` (read-only CRM adapter), `document_generation*` (async NATS), `email*` (Noop), `events` (NATS publish).
+- `ports/` — `crm_core*` (read-only CRM adapter), `document_generation*` (async NATS), `email*` (Noop), `events` (NATS publish), `providers` (which adapter backs each port — framework-free on purpose, see `worker/` below).
 - `regime/` — `BillingRegime` Protocol + `CwapeWalloniaRegime` + `registry` (startup parity gate); config from `reference/regulators.json` + `regime/billing_regimes.json`.
-- `worker/` — `dispatcher` (consumers) → `persistence.process_billing_run`, `issue.process_issue`, `docgen_results.process_docgen_result` (each callable directly for tests via injected sessions).
+- `worker/` — `dispatcher` (consumers) → `persistence.process_billing_run`, `issue.process_issue`, `docgen_results.process_docgen_result` (each callable directly for tests via injected sessions); `scheduler`/`sweeps` = the 06:00 Brussels overdue tick.
+  - **`Dockerfile.worker` has NO fastapi/uvicorn/starlette** (it installs `requirements/worker.txt`). The worker may import `api.*` — that package IS copied, for `repository`/`mappers`/`BillingService` — but never `api/billing/deps.py` or anything else pulling the HTTP stack: get providers from `ports/providers.py`. This is invisible locally, where `.venv` has everything; it shipped once and crash-looped 62 times. `tests/worker/test_worker_import_graph.py` pins both the import graph and the Dockerfile's `COPY` list.
 - `utils/` — `money` (Decimal HALF_UP), `ogm` (mod-97), `numbering`.
 - `scripts/sql/schema.sql` — raw DDL (NO Alembic). `shared/models/local_models.py` mirrors it.
 

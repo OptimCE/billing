@@ -96,6 +96,12 @@ class Settings(BaseSettings):
     # Watermarked proforma variant rendered for DRAFT invoices (no legal number).
     INVOICE_PROFORMA_TEMPLATE_URI: str = "s3://optimce-templates/billing/invoice_proforma/v1/"
 
+    # ---- Overdue sweep ----
+    # Driven from the worker on a daily tick rather than by a caller. The
+    # `POST /billing-runs/overdue-sweep` route stays, for a manual run.
+    OVERDUE_SWEEP_ENABLED: bool = True
+    OVERDUE_SWEEP_HOUR_LOCAL: int = 6
+
     # ---- Localization ----
     DEFAULT_LOCALE: str = "fr-BE"
 

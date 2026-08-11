@@ -30,6 +30,24 @@ _ACK_WAIT_SECONDS = 60
 _NAK_RETRY_DELAY_SECONDS = 30
 
 
+def _tenant_id_from(body: dict) -> str | int | None:
+    """Read the tenant from a docgen result.
+
+    ``GenerationResult`` is ``extra="forbid"`` and has NO ``tenant_id`` field —
+    it exists only on the *request*. The one channel that round-trips is
+    ``metadata``, which document-generation echoes verbatim, so that is where the
+    tenant actually arrives. The top-level read is kept first only so a hand-built
+    payload (older tests, a manual replay) still works.
+    """
+    top_level = body.get("tenant_id")
+    if top_level is not None:
+        return top_level  # type: ignore[no-any-return]  # untyped JSON body
+    metadata = body.get("metadata")
+    if not isinstance(metadata, dict):
+        return None
+    return metadata.get("tenant_id")
+
+
 async def process_docgen_result(
     body: dict,
     *,
@@ -45,7 +63,7 @@ async def process_docgen_result(
     crm = crm_session or AsyncSessionCRMFactory()
     try:
         request_id = body.get("request_id")
-        tenant_id = body.get("tenant_id")
+        tenant_id = _tenant_id_from(body)
         if not request_id or tenant_id is None:
             logger.error("docgen result missing request_id/tenant_id: %r", body)
             return "drop"
