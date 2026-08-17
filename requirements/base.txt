@@ -34,3 +34,8 @@ opentelemetry-util-http==0.60b1
 reportlab==4.4.10
 
 aiosmtplib>=3.0.0
+
+# Realtime SSE hints (fire-and-forget pub/sub consumed by crm-backend's hub).
+# redis.asyncio, not the unmaintained aioredis — it is aioredis's successor and
+# ships in the same package.
+redis==5.2.1
