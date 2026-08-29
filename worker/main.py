@@ -23,6 +23,7 @@ import sys
 from core.database.database import crm_engine, local_engine
 from core.logging import configure_logging
 from core.queue.init import close_nats, get_jetstream, init_nats
+from core.realtime import log_realtime_state
 from core.tracing import setup_tracer_provider
 from regime.registry import assert_regime_parity
 from worker import dispatcher
@@ -92,6 +93,9 @@ async def _heartbeat(shutdown_event: asyncio.Event) -> None:
 
 async def main() -> None:
     configure_logging()
+    # Absence of this line means the image predates the realtime feature —
+    # see core/realtime/bus.py. Must come after configure_logging().
+    log_realtime_state("billing-worker")
     setup_tracer_provider()
     # Fail loudly at boot if the active regulators and registered regimes disagree.
     assert_regime_parity()

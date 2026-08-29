@@ -24,6 +24,7 @@ from core.notifications import (
     NotificationService,
     NotificationTypes,
 )
+from core.realtime import CommunityAudience, Tier, emit
 from regime.registry import RegimeConfigError, get_registry
 from shared.const import BillingDirection, BillingRunStatus, TariffKind
 from shared.models.local_models import BillingRunModel
@@ -122,7 +123,12 @@ async def process_billing_run(
         # above does, and core/notifications never reads a ContextVar. Redelivery
         # safety is free: both early-return paths return from inside the
         # `with_tenant` block, skipping the audit and this notification alike.
-        await NotificationService(crm).publish(
+        # Hoisted to a local: the realtime hint is staged on the INSTANCE by
+        # publish() and released by flush_realtime() after the commit, so
+        # constructing it inline (as this used to) would leave the staged hint
+        # unreachable and silently drop every event from this path.
+        notifier = NotificationService(crm)
+        await notifier.publish(
             type=NotificationTypes.BILLING_RUN_COMPLETED,
             target=CommunityTarget(community_id=run.id_community, roles=MANAGER_ROLES),
             category=NotificationCategory.INFORMATIONAL,
@@ -131,6 +137,20 @@ async def process_billing_run(
         )
         if own_crm:
             await crm.commit()
+            # BOTH of these live inside `if own_crm:` on purpose. When a session
+            # is injected the CALLER owns the commit, so emitting here would
+            # publish pre-commit — and the fire-and-forget transport gives no
+            # second chance. An injected-session caller owns its own flush.
+            await notifier.flush_realtime()
+            # Retires the 4s poll on the billing run card. Community MANAGER
+            # tier, matching the notification's own audience above.
+            await emit(
+                topic="billing_run.finished",
+                audience=CommunityAudience(community_id=run.id_community, tier=Tier.MANAGER),
+                resource=("billing_run", run_id),
+                scope_community_id=run.id_community,
+                hint={"status": "success"},
+            )
         return count
     finally:
         if own_local:

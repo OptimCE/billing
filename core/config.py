@@ -61,6 +61,14 @@ class Settings(BaseSettings):
     # MinIO ignores region but botocore still requires it to sign requests.
     STORAGE_REGION: str = "us-east-1"
 
+    # ---- Realtime (Redis pub/sub) ----
+    # Fire-and-forget SSE hints. Deliberately NOT in validate_env_config's
+    # required set (contrast NATS_URL below): realtime is optional by design, and
+    # making it mandatory would turn a broker outage into a boot failure. An
+    # empty URL makes core.realtime.emit() a silent no-op.
+    REALTIME_ENABLED: bool = False
+    REALTIME_REDIS_URL: str = ""
+
     # ---- CORS ----
     ALLOW_ORIGIN: str = "*"
 

@@ -392,6 +392,7 @@ class BillingService:
         )
         await self._crm.commit()
         app_metrics.invoices_issued.add(1)
+        await self._notify.flush_realtime()
 
         return IssueOut(
             id=invoice_id,
@@ -541,6 +542,12 @@ class BillingService:
             await self._crm.commit()
         await self._local.commit()
         return OverdueSweepOut(marked=len(swept))
+        # AFTER self._local.commit(), not after the CRM one above: the
+        # invoice -> OVERDUE UPDATE is the row the UI refetches, and it is the
+        # local commit that makes it durable. Note the two commits are ordered
+        # the OPPOSITE way round in issue_invoice, so "flush after the enclosing
+        # commit" is not a rule that survives being applied mechanically.
+        await self._notify.flush_realtime()
 
     async def create_credit_note(self, *, invoice_id: int, body: CreditNoteIn) -> InvoiceOut:
         cid = self._community()
