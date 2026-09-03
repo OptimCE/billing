@@ -74,7 +74,7 @@ async def create_address(
     *,
     id_community: int,
     street: str = "Rue de la Loi",
-    number: int = 16,  # integer column in the real CRM (see crm_test_schema.sql)
+    number: str = "16",  # text column in the real CRM: 12A is a real house number
     postcode: str = "1000",
     city: str = "Bruxelles",
     supplement: str | None = None,
