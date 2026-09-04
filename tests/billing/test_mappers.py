@@ -27,9 +27,10 @@ def test_format_address_normal() -> None:
 
 
 def test_format_address_tolerates_int_number() -> None:
-    # Defensive guard: the CRM `address.number` column is an integer, so an int can
-    # reach the formatter. It must not raise a TypeError — that used to dead-letter
-    # the whole invoice-issue message and block PDF generation entirely.
+    # Defensive guard. `address.number` became a VARCHAR(32) on 2026-08-30, so an
+    # int no longer arrives from the CRM by that route — but the formatter is also
+    # fed from callers this module does not control, and a TypeError here used to
+    # dead-letter the whole invoice-issue message and block PDF generation.
     assert _format_address(_identity(number=16)) == "Rue de la Loi 16, 1000 Bruxelles"
 
 

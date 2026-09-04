@@ -493,7 +493,7 @@ async def test_get_community_identity(db_session):
         db_session, iban="BE68539007547034", legal_name="ACME ASBL", account_holder_name=None
     )
     addr = await f.create_address(
-        db_session, id_community=cid, street="Rue de la Loi", number=16, city="Bruxelles"
+        db_session, id_community=cid, street="Rue de la Loi", number="16", city="Bruxelles"
     )
     await db_session.execute(
         text("UPDATE community SET headquarters_address_id = :a WHERE id = :c"),
@@ -524,7 +524,7 @@ async def test_community_identity_missing_iban_is_incomplete(db_session):
 async def test_participant_contacts_individual_and_company(db_session):
     cid = await f.create_community(db_session)
     billing_addr = await f.create_address(
-        db_session, id_community=cid, street="Chaussée de Liège", number=5, city="Namur"
+        db_session, id_community=cid, street="Chaussée de Liège", number="5", city="Namur"
     )
     m_ind = await f.create_member(
         db_session,

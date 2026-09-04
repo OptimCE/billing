@@ -37,10 +37,11 @@ CREATE INDEX IF NOT EXISTS idx_community_subscription_id_community
 CREATE TABLE IF NOT EXISTS address (
     id           INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     street       VARCHAR(255),
-    number       INTEGER,  -- matches the real CRM: house number is an integer column
+    number       VARCHAR(32),  -- matches the real CRM: text, because 12A is a real house number
     postcode     VARCHAR(16),
     supplement   VARCHAR(255),
     city         VARCHAR(255),
+    country      CHAR(2) NOT NULL DEFAULT 'BE',
     id_community INTEGER,
     created_at   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP

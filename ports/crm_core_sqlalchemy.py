@@ -218,8 +218,9 @@ class SqlAlchemyCrmCoreRead:
         if row is None:
             return None
         data = dict(row)
-        # CRM `address.number` is an integer column; the DTO (and the docgen
-        # address formatter) treat it as a string. Coerce to honour `str | None`.
+        # CRM `address.number` is text since 2026-08-30, so this is normally a
+        # no-op — kept because it is what lets this adapter read a CRM on either
+        # side of that migration, and the DTO owes `str | None` regardless.
         if data.get("number") is not None:
             data["number"] = str(data["number"])
         return CommunityIdentity(**data)
@@ -264,7 +265,7 @@ class SqlAlchemyCrmCoreRead:
                 vat_number=row["company_vat"],
                 social_rate=bool(row["social_rate"]) if row["social_rate"] is not None else False,
                 street=row["street"],
-                # CRM `address.number` is an integer column; DTO expects `str | None`.
+                # Text since 2026-08-30; kept for the same reason as above.
                 number=str(row["number"]) if row["number"] is not None else None,
                 postcode=row["postcode"],
                 city=row["city"],

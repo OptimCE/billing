@@ -93,8 +93,9 @@ def invoice_to_out(
 def _format_address(obj: CommunityIdentity | ParticipantContact | None) -> str | None:
     if obj is None:
         return None
-    # Coerce each part to str: address components (e.g. a house number) may arrive
-    # as ints from the CRM, and a TypeError here would dead-letter the whole issue.
+    # Coerce each part to str. The CRM house number became text on 2026-08-30, but
+    # this formatter is fed from callers this module does not control, and a
+    # TypeError here would dead-letter the whole issue.
     line1 = " ".join(str(part) for part in (obj.street, obj.number) if part)
     line2 = " ".join(str(part) for part in (obj.postcode, obj.city) if part)
     joined = ", ".join(str(part) for part in (line1, line2, obj.supplement) if part)
