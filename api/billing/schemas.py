@@ -3,11 +3,17 @@
 from __future__ import annotations
 
 import datetime
+import re
 from decimal import Decimal
 
 from pydantic import BaseModel, model_validator
 
 from shared.const import PaymentMethod, TariffKind, TariffScope
+
+#: An EAN is exactly 18 digits. Mirrors crm-backend's
+#: `modules/meters/shared/ean.ts`; kept local because this is the only place in
+#: this service that mints an EAN rather than reading one back.
+_EAN_PATTERN = re.compile(r"^[0-9]{18}$")
 
 
 class TariffIn(BaseModel):
@@ -31,6 +37,19 @@ class TariffIn(BaseModel):
             raise ValueError("scope_segment is required for SEGMENT scope")
         if self.scope == TariffScope.EAN and not self.scope_ean:
             raise ValueError("scope_ean is required for EAN scope")
+        # Format-checked here and nowhere else in this service, because this is
+        # the one EAN a user TYPES rather than one read back from the CRM. An
+        # EAN-scoped tariff is defined as applying to one meter, so there is no
+        # legitimate non-EAN value — and a typo does not fail, it silently
+        # resolves for nobody while pricing falls through to SEGMENT then
+        # GLOBAL (worker/pricing.py, most-specific-wins). Silent mispricing is
+        # the worst outcome available here.
+        if (
+            self.scope == TariffScope.EAN
+            and self.scope_ean
+            and not _EAN_PATTERN.fullmatch(self.scope_ean.strip())
+        ):
+            raise ValueError("scope_ean must be an 18-digit EAN")
         if self.scope == TariffScope.GLOBAL and (
             self.scope_segment is not None or self.scope_ean is not None
         ):
