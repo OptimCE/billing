@@ -17,6 +17,11 @@ class InvoiceStatus(IntEnum):
     OVERDUE derived and CANCELLED reachable only from DRAFT. RENDER_FAILED marks
     an ISSUED invoice whose PDF render failed permanently (the invoice keeps its
     legal number; the render can be retried).
+
+    CREDITED is terminal: an issued consumer INVOICE moves there when a credit
+    note correcting it is ISSUED (the credit note is the legal act, not its
+    DRAFT). The invoice's number, lines and amounts never change; only the
+    status says it no longer stands, so it is neither payable nor swept OVERDUE.
     """
 
     DRAFT = 0
@@ -26,10 +31,30 @@ class InvoiceStatus(IntEnum):
     OVERDUE = 4
     CANCELLED = 5
     RENDER_FAILED = 6
+    CREDITED = 7
+
+
+# Statuses an INVOICE can be credited from: every issued (numbered) state that
+# still stands. A PAID invoice is included: crediting it is how a refund is owed.
+CREDITABLE_STATUSES: frozenset[InvoiceStatus] = frozenset(
+    {
+        InvoiceStatus.ISSUED,
+        InvoiceStatus.SENT,
+        InvoiceStatus.OVERDUE,
+        InvoiceStatus.RENDER_FAILED,
+        InvoiceStatus.PAID,
+    }
+)
 
 
 class InvoiceType(IntEnum):
-    """Document type. Each type has its own gapless numbering series."""
+    """Document type. Each type has its own gapless numbering series.
+
+    Only an INVOICE is a receivable (the member pays the community). A
+    CREDIT_NOTE cancels an invoice, and a PRODUCER_STATEMENT is a payout from
+    the community to the producer, so neither carries a structured
+    communication, goes OVERDUE, or uses the invoice notification wording.
+    """
 
     INVOICE = 1
     CREDIT_NOTE = 2

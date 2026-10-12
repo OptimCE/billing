@@ -53,13 +53,16 @@ ausgeführt.
    Mitglied/Richtung; eine Verbrauchsrechnung und/oder ein
    Erzeuger-Abrechnungsbeleg).
 4. `POST /invoices/{id}/issue` — vergibt eine lückenlose Nummer je Serie
-   (`F-YYYY-#####` / `NC-…` / `DP-…`), eine belgische strukturierte
-   OGM-Mitteilung, setzt ISSUED; der Worker rendert anschließend das PDF über
-   document-generation und hängt es an.
+   (`F-YYYY-#####` / `NC-…` / `DP-…`), setzt ISSUED; eine Verbrauchsrechnung
+   erhält zusätzlich eine belgische strukturierte OGM-Mitteilung und ein
+   Fälligkeitsdatum, eine Erzeugerabrechnung nur ein Fälligkeitsdatum (wann die
+   Gemeinschaft sie bezahlt), eine Gutschrift keines von beiden. Der Worker
+   rendert anschließend das PDF über document-generation und hängt es an.
 5. `POST /invoices/{id}/send` (Noop-E-Mail in v1) → SENT · `POST …/payments` →
-   PAID · `POST /billing-runs/overdue-sweep` → OVERDUE · `POST …/credit-note` →
-   eine negierte DRAFT-Gutschrift (stellen Sie sie für ihre eigene NC-Nummer
-   aus).
+   PAID · `POST /billing-runs/overdue-sweep` → OVERDUE (nur
+   Verbrauchsrechnungen) · `POST …/credit-note` → eine negierte
+   DRAFT-Gutschrift; ihre Ausstellung (eigene NC-Nummer) setzt die
+   gutgeschriebene Rechnung auf CREDITED, nicht mehr zahlbar und nie überfällig.
 
 Regionale Regeln (MwSt., rechtliche Hinweise, Nummerierungsformat,
 Zahlungsfristen) liegen hinter einem `BillingRegime`, das aus dem

@@ -210,7 +210,11 @@ pyrightconfig.json
 [Ll]ib
 [Ll]ib64
 [Ll]ocal
-[Ss]cripts
+# [Ss]cripts — REMOVED. This unanchored toptal venv entry matched this
+# project's own top-level scripts/ directory, which silently kept every
+# file under scripts/sql/migrations/ out of the repository. The virtualenv
+# case it was meant to cover is already handled by the `.venv` and `venv/`
+# rules above, so the entry was pure downside.
 pyvenv.cfg
 pip-selfcheck.json
 

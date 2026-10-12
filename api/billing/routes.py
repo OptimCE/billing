@@ -138,6 +138,7 @@ async def overdue_sweep(
 async def list_my_invoices(
     service: BillingService = Depends(get_billing_service),
     status: int | None = Query(default=None),
+    doc_type: int | None = Query(default=None, alias="type"),
     issued_from: datetime.date | None = Query(default=None),
     issued_to: datetime.date | None = Query(default=None),
     sort: str | None = Query(default=None),
@@ -147,6 +148,7 @@ async def list_my_invoices(
 ) -> ApiResponsePaginated[list[InvoiceOut]]:
     invoices, total = await service.list_my_invoices(
         status=status,
+        doc_type=doc_type,
         issued_from=issued_from,
         issued_to=issued_to,
         sort=sort,
@@ -278,6 +280,7 @@ async def list_invoices(
     service: BillingService = Depends(get_billing_service),
     status: int | None = Query(default=None),
     participant: int | None = Query(default=None),
+    doc_type: int | None = Query(default=None, alias="type"),
     issued_from: datetime.date | None = Query(default=None),
     issued_to: datetime.date | None = Query(default=None),
     sort: str | None = Query(default=None),
@@ -288,6 +291,7 @@ async def list_invoices(
     invoices, total = await service.list_invoices(
         status=status,
         id_member=participant,
+        doc_type=doc_type,
         issued_from=issued_from,
         issued_to=issued_to,
         sort=sort,

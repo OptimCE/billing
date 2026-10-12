@@ -49,12 +49,16 @@ services) s'exécute depuis le [monorepo](https://github.com/OptimCE/monorepo).
 3. Le worker valorise le snapshot → factures **DRAFT** (une par membre/direction ;
    une facture de consommation et/ou un décompte de production).
 4. `POST /invoices/{id}/issue` — attribue un numéro sans rupture par série
-   (`F-YYYY-#####` / `NC-…` / `DP-…`), une communication structurée belge OGM,
-   passe à ISSUED ; le worker rend ensuite le PDF via document-generation et
-   l'attache.
+   (`F-YYYY-#####` / `NC-…` / `DP-…`), passe à ISSUED ; une facture de
+   consommation reçoit aussi une communication structurée belge OGM et une
+   échéance, un décompte de production une échéance seulement (quand la
+   communauté le paie), une note de crédit ni l'une ni l'autre. Le worker rend
+   ensuite le PDF via document-generation et l'attache.
 5. `POST /invoices/{id}/send` (email Noop en v1) → SENT · `POST …/payments` →
-   PAID · `POST /billing-runs/overdue-sweep` → OVERDUE · `POST …/credit-note` →
-   une note de crédit DRAFT négativée (émettez-la pour son propre numéro NC).
+   PAID · `POST /billing-runs/overdue-sweep` → OVERDUE (factures de consommation
+   uniquement) · `POST …/credit-note` → une note de crédit DRAFT négativée ; son
+   émission (numéro NC propre) fait passer la facture créditée à CREDITED, ni
+   payable ni balayée.
 
 Les règles régionales (TVA, mentions légales, format de numérotation, délais de
 paiement) sont gérées derrière un `BillingRegime` résolu à partir du code

@@ -22,9 +22,10 @@ from nats.aio.msg import Msg
 from nats.js import JetStreamContext
 from nats.js.api import ConsumerConfig
 
-from core.queue.helper import Event, send_event
+from core.queue.helper import Event, send_event, subscribe_durable
 from ports.document_generation_nats import NatsDocumentGeneration
 from shared.const import (
+    SUBJECT_DLQ_DOCGEN_RESULT,
     SUBJECT_DLQ_ISSUE,
     SUBJECT_DLQ_RUN,
     SUBJECT_INVOICE_ISSUE_REQUESTED,
@@ -54,37 +55,44 @@ _DOCGEN_RETRY_MAX_ATTEMPTS = 40
 async def subscribe_all(js: JetStreamContext, *, inflight: set[asyncio.Task] | None = None) -> list:
     """Register the billing durable consumers. Returns their subscriptions."""
     subs = [
-        await js.subscribe(
+        await subscribe_durable(
+            js,
             subject=SUBJECT_RUN_REQUESTED,
             durable=_RUN_DURABLE,
-            queue=_RUN_DURABLE,
-            manual_ack=True,
             cb=_make_handler(js, _process_run_message, inflight=inflight),
             config=ConsumerConfig(ack_wait=_ACK_WAIT_SECONDS, max_deliver=_MAX_DELIVER),
         ),
-        await js.subscribe(
+        await subscribe_durable(
+            js,
             subject=SUBJECT_INVOICE_ISSUE_REQUESTED,
             durable=_ISSUE_DURABLE,
-            queue=_ISSUE_DURABLE,
-            manual_ack=True,
             cb=_make_handler(js, _process_issue_message, inflight=inflight),
             config=ConsumerConfig(ack_wait=_ISSUE_ACK_WAIT_SECONDS, max_deliver=_MAX_DELIVER),
         ),
     ]
     logger.info("Subscribed billing run + issue consumers")
+
+    async def _to_result_dlq(msg: Msg) -> None:
+        await _to_dlq(js, SUBJECT_DLQ_DOCGEN_RESULT, msg)
+
     # The docgen result stream is owned by document-generation. Try once; if it
     # isn't there yet (cold-start race), retry in the background so PDF-attach
     # self-heals instead of staying disabled for the process lifetime.
     try:
-        subs.append(await docgen_results.subscribe(js))
+        subs.append(await docgen_results.subscribe(js, on_dlq=_to_result_dlq))
         logger.info("Subscribed docgen results consumer")
     except Exception as exc:
         logger.warning("docgen results not ready (%s); retrying attach in the background", exc)
-        _spawn_docgen_result_retry(js, inflight=inflight)
+        _spawn_docgen_result_retry(js, _to_result_dlq, inflight=inflight)
     return subs
 
 
-def _spawn_docgen_result_retry(js: JetStreamContext, *, inflight: set[asyncio.Task] | None) -> None:
+def _spawn_docgen_result_retry(
+    js: JetStreamContext,
+    on_dlq: Callable[[Msg], Awaitable[None]],
+    *,
+    inflight: set[asyncio.Task] | None,
+) -> None:
     """Background-retry the docgen-results subscription until it succeeds.
 
     The subscription is not appended to the caller's drain list — mutating that
@@ -104,7 +112,7 @@ def _spawn_docgen_result_retry(js: JetStreamContext, *, inflight: set[asyncio.Ta
             )
             await asyncio.sleep(delay)
             try:
-                await docgen_results.subscribe(js)
+                await docgen_results.subscribe(js, on_dlq=on_dlq)
             except asyncio.CancelledError:
                 raise
             except Exception as exc:

@@ -17,4 +17,9 @@ class NotificationTypes:
 
     INVOICE_ISSUED = "invoice.issued"
     INVOICE_OVERDUE = "invoice.overdue"
+    # The two non-receivable document types announce themselves with their own
+    # wording: a credit note is owed TO the member, a producer statement is a
+    # payout the community makes. Neither is "an invoice due on ...".
+    CREDIT_NOTE_ISSUED = "credit_note.issued"
+    PRODUCER_STATEMENT_ISSUED = "producer_statement.issued"
     BILLING_RUN_COMPLETED = "billing_run.completed"

@@ -49,13 +49,16 @@ draait vanuit de [monorepo](https://github.com/OptimCE/monorepo).
 3. De worker beprijst de snapshot → **DRAFT**-facturen (één per lid/richting; een
    verbruiksfactuur en/of een productieafrekening).
 4. `POST /invoices/{id}/issue` — kent een sluitend nummer per reeks toe
-   (`F-YYYY-#####` / `NC-…` / `DP-…`), een Belgische gestructureerde
-   OGM-mededeling, zet op ISSUED; de worker rendert vervolgens de PDF via
-   document-generation en koppelt hem.
+   (`F-YYYY-#####` / `NC-…` / `DP-…`), zet op ISSUED; een verbruiksfactuur
+   krijgt ook een Belgische gestructureerde OGM-mededeling en een vervaldatum,
+   een productieafrekening alleen een vervaldatum (wanneer de gemeenschap ze
+   betaalt), een creditnota geen van beide. De worker rendert vervolgens de PDF
+   via document-generation en koppelt hem.
 5. `POST /invoices/{id}/send` (Noop-e-mail in v1) → SENT · `POST …/payments` →
-   PAID · `POST /billing-runs/overdue-sweep` → OVERDUE · `POST …/credit-note` →
-   een DRAFT-creditnota met omgekeerd teken (geef ze uit voor haar eigen
-   NC-nummer).
+   PAID · `POST /billing-runs/overdue-sweep` → OVERDUE (alleen
+   verbruiksfacturen) · `POST …/credit-note` → een DRAFT-creditnota met
+   omgekeerd teken; de uitgifte ervan (eigen NC-nummer) zet de gecrediteerde
+   factuur op CREDITED, niet meer te betalen en nooit achterstallig.
 
 Regionale regels (btw, wettelijke vermeldingen, nummeringsformaat,
 betaaltermijnen) zitten achter een `BillingRegime` die wordt afgeleid uit de
