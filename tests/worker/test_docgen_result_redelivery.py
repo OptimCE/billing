@@ -81,7 +81,7 @@ def _result_handler(js: FakeJetStream):
 
 async def _subscribed_handler(events: list[tuple]):
     js = _PublishingJetStream(_streams(), events)
-    await dispatcher.subscribe_all(js)
+    await dispatcher.subscribe_all(js)  # type: ignore[arg-type]  # duck-typed FakeJetStream
     return _result_handler(js)
 
 

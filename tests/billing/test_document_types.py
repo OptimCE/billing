@@ -121,7 +121,8 @@ async def _seed_prosumer(client, db_session) -> dict[str, int]:
 async def _issue(client, document_id: int) -> dict:
     resp = await client.post(f"/invoices/{document_id}/issue", headers=_headers())
     assert resp.status_code == 200, resp.text
-    return resp.json()["data"]
+    data: dict = resp.json()["data"]
+    return data
 
 
 async def _credit(client, invoice_id: int) -> dict:
@@ -129,13 +130,15 @@ async def _credit(client, invoice_id: int) -> dict:
         f"/invoices/{invoice_id}/credit-note", headers=_headers(), json={"reason": "correction"}
     )
     assert resp.status_code == 200, resp.text
-    return resp.json()["data"]
+    data: dict = resp.json()["data"]
+    return data
 
 
 async def _get(client, document_id: int) -> dict:
     resp = await client.get(f"/invoices/{document_id}", headers=_headers())
     assert resp.status_code == 200, resp.text
-    return resp.json()["data"]
+    data: dict = resp.json()["data"]
+    return data
 
 
 async def _notifications(db_session, type_: str) -> list[NotificationModel]:
