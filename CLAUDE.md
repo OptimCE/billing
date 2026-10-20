@@ -26,4 +26,4 @@ the domain. Full plan: `~/.claude/plans/snappy-mixing-dahl.md`.
 - NATS streams must have disjoint subjects: BILLING (work_queue) / BILLING_EVENTS (limits) / BILLING_DLQ.
 
 ## Verify
-`cd billing` then: `ENV=test .venv/Scripts/python.exe -m pytest -q` (needs Docker Postgres on 5433) · `.venv/Scripts/python.exe -m ruff check .` · `... -m mypy api ports regime utils worker`.
+`cd billing` then: `ENV=test .venv/Scripts/python.exe -m pytest -q` (needs Docker Postgres on 5433) · `.venv/Scripts/python.exe -m ruff check .` · `... -m ruff format --check .` · `... -m mypy .` (the same three steps as `lint.yml`; mypy covers `tests/` too, so a subset passes where CI fails).

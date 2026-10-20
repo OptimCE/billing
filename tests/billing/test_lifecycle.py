@@ -165,9 +165,13 @@ async def test_credit_note_mirrors_and_issues_in_own_series(client, db_session):
     year = datetime.datetime.now(datetime.UTC).astimezone(ZoneInfo("Europe/Brussels")).year
     assert resp.json()["data"]["number"] == f"NC-{year}-00001"
 
-    # The original invoice is untouched (still ISSUED).
+    # The original document is untouched; only its status says it no longer
+    # stands (tests/billing/test_document_types.py covers CREDITED in depth).
+    db_session.expire_all()
     resp = await client.get(f"/invoices/{invoice_id}", headers=_headers())
-    assert resp.json()["data"]["status"] == 1  # ISSUED
+    original = resp.json()["data"]
+    assert original["status"] == 7  # CREDITED
+    assert Decimal(original["total"]) == Decimal("5.45")
 
 
 async def test_cannot_credit_a_draft(client, db_session):

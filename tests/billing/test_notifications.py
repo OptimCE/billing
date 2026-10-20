@@ -19,6 +19,7 @@ import main
 from api.billing.deps import get_event_publisher
 from core.database.models import AuditLogModel
 from core.notifications import Channel, NotificationCategory, UsersTarget
+from core.notifications import service as notification_service_module
 from core.notifications.repository import NotificationRepository
 from core.notifications.service import EmailRecipient, NotificationService
 from shared.models.crm_models import NotificationModel
@@ -366,6 +367,32 @@ async def test_overdue_sweep_notifies_the_invoiced_member(client, db_session):
     assert len(overdue) == 1
     assert overdue[0].id_user == ids["user_id"]
     assert overdue[0].data["invoice_id"] == ids["invoice_id"]
+
+
+async def test_overdue_sweep_releases_the_realtime_hint(client, db_session, monkeypatch):
+    """`flush_realtime` used to sit after the `return`, so the bell never refreshed.
+
+    The rows and the email were written; only the "refetch now" hint was
+    unreachable, which no assertion on rows can see.
+    """
+    ids = await _seed_run(db_session, client)
+    await client.post(f"/invoices/{ids['invoice_id']}/issue", headers=_headers())
+    await db_session.execute(
+        update(InvoiceModel)
+        .where(InvoiceModel.id == ids["invoice_id"])
+        .values(due_date=datetime.date(2020, 1, 1))
+    )
+    emitted: list[dict[str, object]] = []
+
+    async def _spy(**kwargs: object) -> None:
+        emitted.append(kwargs)
+
+    monkeypatch.setattr(notification_service_module, "emit", _spy)
+
+    resp = await client.post("/billing-runs/overdue-sweep", headers=_headers())
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["data"]["marked"] == 1
+    assert [e["topic"] for e in emitted] == ["notification.created"]
 
 
 async def test_second_overdue_sweep_notifies_nobody(client, db_session):

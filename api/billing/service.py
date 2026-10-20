@@ -49,6 +49,7 @@ from ports.email import EmailMessage, EmailPort
 from ports.events import EventPublisher
 from regime.registry import RegimeConfigError, RegimeRegistry
 from shared.const import (
+    CREDITABLE_STATUSES,
     SUBJECT_INVOICE_ISSUE_REQUESTED,
     SUBJECT_RUN_REQUESTED,
     BillingDirection,
@@ -71,6 +72,44 @@ from utils import ogm
 logger = logging.getLogger(__name__)
 
 _SETTLEMENT_TZ = ZoneInfo("Europe/Brussels")
+
+
+def _issued_notification(
+    invoice: InvoiceModel,
+    *,
+    doc_type: InvoiceType,
+    number: str,
+    due_date: datetime.date | None,
+    corrected_number: str | None,
+) -> tuple[str, dict[str, object]]:
+    """The notification type and ``data`` that announce a freshly issued document.
+
+    One type per document type, because the in-app title and the email template
+    are both chosen by type: "your invoice is due on ..." is wrong for a credit
+    note (nobody pays) and for a producer statement (the community pays).
+    ``data`` holds JSON primitives only: it goes into a JSONB column, so the
+    Decimal amounts and the date have to be strings.
+    """
+    base: dict[str, object] = {
+        "invoice_id": invoice.id,
+        "number": number,
+        "currency": invoice.currency,
+    }
+    if doc_type == InvoiceType.CREDIT_NOTE:
+        # The credit note's own total is negative; the member is told how much
+        # is credited to them, so send the magnitude.
+        return NotificationTypes.CREDIT_NOTE_ISSUED, {
+            **base,
+            "amount": str(abs(invoice.total)),
+            "corrects_number": corrected_number,
+        }
+    if doc_type == InvoiceType.PRODUCER_STATEMENT:
+        return NotificationTypes.PRODUCER_STATEMENT_ISSUED, {**base, "total": str(invoice.total)}
+    return NotificationTypes.INVOICE_ISSUED, {
+        **base,
+        "due_date": due_date.isoformat() if due_date else None,
+        "total": str(invoice.total),
+    }
 
 
 class BillingService:
@@ -315,6 +354,7 @@ class BillingService:
             raise ErrorException(errors.billing.INVOICE_NOT_FOUND, status_code=404)
         if invoice.status != InvoiceStatus.DRAFT:
             raise ErrorException(errors.billing.INVOICE_NOT_DRAFT, status_code=409)
+        doc_type = InvoiceType(invoice.doc_type)
 
         identity = await self._crm_read.get_community_identity(id_community=cid)
         if identity is None:
@@ -323,6 +363,20 @@ class BillingService:
             regime = self._registry.get_for(identity.regulator)
         except RegimeConfigError as exc:
             raise ErrorException(errors.billing.REGIME_NOT_CONFIGURED, status_code=500) from exc
+
+        # Issuing a credit note is the legal act that retires the invoice it
+        # corrects, so that invoice moves to CREDITED in this same local
+        # transaction. It goes first, before a number is claimed: if the invoice
+        # can no longer be credited (another credit note was issued for it in the
+        # meantime), nothing is numbered and the series stays gapless.
+        corrected_id = invoice.corrects_invoice_id
+        corrected_number: str | None = None
+        if doc_type == InvoiceType.CREDIT_NOTE:
+            corrected = await self._repo.get_invoice(corrected_id) if corrected_id else None
+            if corrected is None or not await self._repo.mark_credited(corrected.id):
+                await self._local.rollback()
+                raise ErrorException(errors.billing.CREDIT_NOTE_TARGET_INVALID, status_code=409)
+            corrected_number = corrected.number
 
         now_utc = datetime.datetime.now(datetime.UTC)
         local = now_utc.astimezone(_SETTLEMENT_TZ)
@@ -335,9 +389,17 @@ class BillingService:
             await self._local.rollback()
             raise ErrorException(errors.billing.NUMBERING_FAILED, status_code=500) from exc
 
-        number = regime.format_number(doc_type=InvoiceType(invoice.doc_type), year=year, seq=seq)
-        structured_comm = ogm.generate(invoice.id)
-        due_date = local.date() + datetime.timedelta(days=regime.due_days())
+        number = regime.format_number(doc_type=doc_type, year=year, seq=seq)
+        # A structured communication is the reference the PAYER quotes on the
+        # transfer, and only a consumer invoice is paid by the member. A credit
+        # note asks nobody for money, so it gets no due date either. A producer
+        # statement keeps one: it is when the community owes the payout.
+        structured_comm = ogm.generate(invoice.id) if doc_type == InvoiceType.INVOICE else None
+        due_date = (
+            None
+            if doc_type == InvoiceType.CREDIT_NOTE
+            else local.date() + datetime.timedelta(days=regime.due_days())
+        )
 
         await self._repo.mark_issued(
             invoice_id,
@@ -360,35 +422,37 @@ class BillingService:
                 number,
             )
 
+        audit_payload: dict[str, object] = {"number": number}
+        if doc_type == InvoiceType.CREDIT_NOTE:
+            audit_payload["credited_invoice_id"] = corrected_id
         await self._audit.log(
             AuditLogInput(
                 action=AuditActions.INVOICE_ISSUED,
                 entity_type="invoice",
                 entity_id=str(invoice_id),
-                payload={"number": number},
+                payload=audit_payload,
             ),
             id_community=cid,
         )
         # Same CRM transaction as the audit row: both land or neither does.
-        # `data` holds JSON primitives only — it goes into a JSONB column, so the
-        # Decimal total and the date have to be strings.
         by_member = await self._crm_read.user_ids_for_members(
             id_community=cid, member_ids=[invoice.id_member]
         )
+        notification_type, data = _issued_notification(
+            invoice,
+            doc_type=doc_type,
+            # Read from the locals, not from `invoice`: mark_issued is a bare
+            # UPDATE, so the loaded instance still says DRAFT with no number.
+            number=number,
+            due_date=due_date,
+            corrected_number=corrected_number,
+        )
         await self._notify.publish(
-            type=NotificationTypes.INVOICE_ISSUED,
+            type=notification_type,
             target=UsersTarget(user_ids=by_member.get(invoice.id_member, []), community_id=cid),
             category=NotificationCategory.TRANSACTIONAL,
             channels=(Channel.INAPP, Channel.EMAIL),
-            data={
-                "invoice_id": invoice_id,
-                # Read from the locals, not from `invoice`: mark_issued is a bare
-                # UPDATE, so the loaded instance still says DRAFT with no number.
-                "number": number,
-                "due_date": due_date.isoformat(),
-                "total": str(invoice.total),
-                "currency": invoice.currency,
-            },
+            data=data,
         )
         await self._crm.commit()
         app_metrics.invoices_issued.add(1)
@@ -541,22 +605,27 @@ class BillingService:
             # local UPDATE back with it, so the sweep can be retried whole.
             await self._crm.commit()
         await self._local.commit()
-        return OverdueSweepOut(marked=len(swept))
         # AFTER self._local.commit(), not after the CRM one above: the
         # invoice -> OVERDUE UPDATE is the row the UI refetches, and it is the
         # local commit that makes it durable. Note the two commits are ordered
         # the OPPOSITE way round in issue_invoice, so "flush after the enclosing
         # commit" is not a rule that survives being applied mechanically.
         await self._notify.flush_realtime()
+        return OverdueSweepOut(marked=len(swept))
 
     async def create_credit_note(self, *, invoice_id: int, body: CreditNoteIn) -> InvoiceOut:
         cid = self._community()
         original = await self._repo.get_invoice(invoice_id)
         if original is None:
             raise ErrorException(errors.billing.INVOICE_NOT_FOUND, status_code=404)
-        # Only an issued consumer invoice can be credited (a DRAFT is deleted, not
-        # credited; a credit note isn't itself creditable).
-        if original.doc_type != InvoiceType.INVOICE or original.status == InvoiceStatus.DRAFT:
+        # Only an issued consumer invoice that still stands can be credited (a
+        # DRAFT is deleted, not credited; a credit note isn't itself creditable),
+        # and only once: a second credit note would refund the same bill twice.
+        if (
+            original.doc_type != InvoiceType.INVOICE
+            or original.status not in CREDITABLE_STATUSES
+            or await self._repo.has_open_credit_note(original.id)
+        ):
             raise ErrorException(errors.billing.CREDIT_NOTE_TARGET_INVALID, status_code=409)
 
         identity = await self._crm_read.get_community_identity(id_community=cid)
@@ -745,6 +814,8 @@ class BillingService:
             InvoiceStatus.SENT,
             InvoiceStatus.PAID,
             InvoiceStatus.OVERDUE,
+            # A credit note refers to it: keep the document it cancels.
+            InvoiceStatus.CREDITED,
         ):
             raise ErrorException(errors.billing.INVOICE_PDF_DELETE_FORBIDDEN, status_code=409)
 
@@ -802,6 +873,7 @@ class BillingService:
         id_member: int | None,
         limit: int,
         offset: int,
+        doc_type: int | None = None,
         issued_from: datetime.date | None = None,
         issued_to: datetime.date | None = None,
         sort: str | None = None,
@@ -810,6 +882,7 @@ class BillingService:
         invoices, total = await self._repo.list_invoices(
             status=status,
             id_member=id_member,
+            doc_type=doc_type,
             limit=limit,
             offset=offset,
             issued_from=issued_from,
@@ -825,6 +898,7 @@ class BillingService:
         status: int | None,
         limit: int,
         offset: int,
+        doc_type: int | None = None,
         issued_from: datetime.date | None = None,
         issued_to: datetime.date | None = None,
         sort: str | None = None,
@@ -847,6 +921,7 @@ class BillingService:
         invoices, total = await self._repo.list_invoices_for_members(
             id_members=member_ids,
             status=status,
+            doc_type=doc_type,
             limit=limit,
             offset=offset,
             issued_from=issued_from,

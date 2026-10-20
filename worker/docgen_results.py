@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Awaitable, Callable
 
 from nats.aio.msg import Msg
 from nats.js import JetStreamContext
@@ -20,6 +21,7 @@ from core import metrics as app_metrics
 from core.audit_log import AuditActions, AuditLogInput, AuditLogService
 from core.config import settings
 from core.database.database import AsyncSessionCRMFactory, AsyncSessionLocalFactory
+from core.queue.helper import subscribe_durable
 from shared.const import InvoiceStatus
 from worker.context import with_tenant
 
@@ -28,6 +30,11 @@ logger = logging.getLogger(__name__)
 _DOCGEN_DURABLE = "worker-billing-docgen"
 _ACK_WAIT_SECONDS = 60
 _NAK_RETRY_DELAY_SECONDS = 30
+# A result that stays transient (a non-permanent docgen failure, a success
+# without a PDF, a crash while handling it) is retried up to this many
+# deliveries, then parked on the DLQ. Unbounded, a result that failed every time
+# redelivered every 30 s forever.
+_MAX_DELIVER = 5
 
 
 def _tenant_id_from(body: dict) -> str | int | None:
@@ -145,8 +152,16 @@ async def process_docgen_result(
             await crm.close()
 
 
-async def subscribe(js: JetStreamContext):
-    """Subscribe to the docgen result subject (stream owned by document-generation)."""
+async def subscribe(js: JetStreamContext, *, on_dlq: Callable[[Msg], Awaitable[None]]):
+    """Subscribe to the docgen result subject (stream owned by document-generation).
+
+    A result still transient on its ``_MAX_DELIVER``-th delivery goes to
+    ``on_dlq`` and is acked. Nothing else changes: the invoice keeps its status
+    and stays without a PDF, which can be requested again. The broker's own
+    ``max_deliver`` is one higher, as a backstop for deliveries the handler never
+    settles (a worker killed mid-message). The spare delivery lets the handler
+    still park a result whose last regular delivery was lost that way.
+    """
 
     async def _handle(msg: Msg) -> None:
         try:
@@ -158,19 +173,29 @@ async def subscribe(js: JetStreamContext):
         try:
             outcome = await process_docgen_result(body)
         except Exception:
-            logger.exception("docgen result handler crashed; will redeliver")
-            await msg.nak(delay=_NAK_RETRY_DELAY_SECONDS)
-            return
-        if outcome == "transient":
-            await msg.nak(delay=_NAK_RETRY_DELAY_SECONDS)
-        else:
-            await msg.ack()
+            logger.exception("docgen result handler crashed")
+            outcome = "transient"
 
-    return await js.subscribe(
+        if outcome != "transient":
+            await msg.ack()
+            return
+
+        delivered = msg.metadata.num_delivered
+        if delivered >= _MAX_DELIVER:
+            logger.error(
+                "docgen result %s still transient after %d deliveries; routing to DLQ",
+                body.get("request_id") if isinstance(body, dict) else None,
+                delivered,
+            )
+            await on_dlq(msg)
+            await msg.ack()
+        else:
+            await msg.nak(delay=_NAK_RETRY_DELAY_SECONDS)
+
+    return await subscribe_durable(
+        js,
         subject=settings.DOCGEN_RESULT_SUBJECT,
         durable=_DOCGEN_DURABLE,
-        queue=_DOCGEN_DURABLE,
-        manual_ack=True,
         cb=_handle,
-        config=ConsumerConfig(ack_wait=_ACK_WAIT_SECONDS),
+        config=ConsumerConfig(ack_wait=_ACK_WAIT_SECONDS, max_deliver=_MAX_DELIVER + 1),
     )

@@ -2,6 +2,7 @@
 
 Usage: python scripts/export_openapi.py <output_path>
 """
+
 import json
 import sys
 from pathlib import Path

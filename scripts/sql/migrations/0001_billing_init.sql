@@ -1,0 +1,14 @@
+-- 0001_billing_init — baseline billing LOCAL schema.
+--
+-- There is no automatic migration runner in this service (mirroring the
+-- template): scripts/sql/schema.sql is applied wholesale to a fresh database
+-- and is the single source of truth for the CURRENT shape. This migrations/
+-- directory is the ordered, human-applied changelog for evolving an EXISTING
+-- database.
+--
+-- The v1 baseline (tariff, billing_run, settlement_snapshot, invoice,
+-- invoice_line, credit_note, payment, invoice_sequence + their constraints,
+-- partial indexes and updated_at triggers) is exactly scripts/sql/schema.sql at
+-- schema_version = 1. To stand up a new database, apply schema.sql. Subsequent
+-- changes are added here as 0002_*, 0003_*, … and must also be folded into
+-- schema.sql so a fresh install and a migrated install converge.

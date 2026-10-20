@@ -44,12 +44,14 @@ the [monorepo](https://github.com/OptimCE/monorepo).
 3. Worker prices the snapshot → **DRAFT** invoices (one per member/direction; a
    consumer invoice and/or a producer statement).
 4. `POST /invoices/{id}/issue` — assign a gapless per-series number
-   (`F-YYYY-#####` / `NC-…` / `DP-…`), a Belgian OGM structured communication,
-   set ISSUED; the worker then renders the PDF via document-generation and
-   attaches it.
+   (`F-YYYY-#####` / `NC-…` / `DP-…`), set ISSUED; a consumer invoice also gets
+   a Belgian OGM structured communication and a due date, a producer statement a
+   due date only (when the community pays it), a credit note neither. The worker
+   then renders the PDF via document-generation and attaches it.
 5. `POST /invoices/{id}/send` (Noop email v1) → SENT · `POST …/payments` → PAID ·
-   `POST /billing-runs/overdue-sweep` → OVERDUE · `POST …/credit-note` → a negated
-   DRAFT credit note (issue it for its own NC number).
+   `POST /billing-runs/overdue-sweep` → OVERDUE (consumer invoices only) ·
+   `POST …/credit-note` → a negated DRAFT credit note; issuing it (own NC number)
+   moves the credited invoice to CREDITED, which is neither payable nor swept.
 
 Regional rules (VAT, legal mentions, numbering format, due days) live behind a
 `BillingRegime` resolved from the community's `regulator` code; v1 ships

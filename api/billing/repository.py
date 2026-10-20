@@ -20,7 +20,13 @@ from sqlalchemy.orm import InstrumentedAttribute
 
 from core.context_vars import current_internal_community_id
 from core.database.with_community import with_community_scope
-from shared.const import BillingRunStatus, InvoiceStatus, TariffScope
+from shared.const import (
+    CREDITABLE_STATUSES,
+    BillingRunStatus,
+    InvoiceStatus,
+    InvoiceType,
+    TariffScope,
+)
 from shared.models.local_models import (
     BillingRunModel,
     CreditNoteModel,
@@ -277,9 +283,9 @@ class BillingRepository:
         invoice_id: int,
         *,
         number: str,
-        structured_comm: str,
+        structured_comm: str | None,
         issued_at: datetime.datetime,
-        due_date: datetime.date,
+        due_date: datetime.date | None,
     ) -> None:
         # Also drop any pre-existing artifact (e.g. a DRAFT proforma PDF): the
         # issue-time render must regenerate the numbered/legal PDF, and
@@ -342,9 +348,16 @@ class BillingRepository:
         )
 
     async def mark_render_failed(self, invoice_id: int) -> None:
+        """ISSUED → RENDER_FAILED; any other status is left alone.
+
+        A forced re-render can fail on a SENT, PAID or CREDITED invoice too. Moving
+        those to RENDER_FAILED would lose the real state for good: a later
+        successful render recovers RENDER_FAILED to ISSUED, which would make a
+        paid or credited invoice payable, and sweepable OVERDUE, again.
+        """
         await self._session.execute(
             update(InvoiceModel)
-            .where(InvoiceModel.id == invoice_id)
+            .where(InvoiceModel.id == invoice_id, InvoiceModel.status == InvoiceStatus.ISSUED)
             .values(status=InvoiceStatus.RENDER_FAILED)
         )
 
@@ -363,7 +376,12 @@ class BillingRepository:
         )
 
     async def sweep_overdue(self, today: datetime.date) -> list[SweptInvoice]:
-        """Mark community-scoped ISSUED/SENT invoices past due as OVERDUE.
+        """Mark community-scoped ISSUED/SENT consumer invoices past due as OVERDUE.
+
+        Only ``InvoiceType.INVOICE`` is a receivable. A producer statement past its
+        due date means the COMMUNITY is late paying, and a credit note is owed to
+        the member, so telling the member either one "remains unpaid" would be
+        wrong. A CREDITED invoice is excluded by its status.
 
         Returns the affected rows rather than a count, because each one has to be
         notified to the member it bills. ``synchronize_session=False`` is
@@ -375,6 +393,7 @@ class BillingRepository:
             update(InvoiceModel)
             .where(
                 InvoiceModel.id_community == self._community(),
+                InvoiceModel.doc_type == InvoiceType.INVOICE,
                 InvoiceModel.status.in_([InvoiceStatus.ISSUED, InvoiceStatus.SENT]),
                 InvoiceModel.due_date < today,
             )
@@ -413,6 +432,41 @@ class BillingRepository:
         self._session.add(link)
         await self._session.flush()
 
+    async def has_open_credit_note(self, invoice_id: int) -> bool:
+        """True if a credit note (DRAFT or issued, not CANCELLED) already corrects it.
+
+        A DRAFT credit note has not moved the original to CREDITED yet, so the
+        status alone cannot stop a second credit note being drafted.
+        """
+        stmt = (
+            with_community_scope(select(InvoiceModel.id), InvoiceModel)
+            .where(
+                InvoiceModel.corrects_invoice_id == invoice_id,
+                InvoiceModel.doc_type == InvoiceType.CREDIT_NOTE,
+                InvoiceModel.status != InvoiceStatus.CANCELLED,
+            )
+            .limit(1)
+        )
+        return (await self._session.execute(stmt)).scalar_one_or_none() is not None
+
+    async def mark_credited(self, invoice_id: int) -> bool:
+        """Move an issued INVOICE that still stands to CREDITED; False if it cannot.
+
+        The status guard is re-evaluated once the row lock is held, so of two
+        credit notes issued concurrently for one invoice exactly one gets True.
+        """
+        result = await self._session.execute(
+            update(InvoiceModel)
+            .where(
+                InvoiceModel.id_community == self._community(),
+                InvoiceModel.id == invoice_id,
+                InvoiceModel.doc_type == InvoiceType.INVOICE,
+                InvoiceModel.status.in_(sorted(CREDITABLE_STATUSES)),
+            )
+            .values(status=InvoiceStatus.CREDITED)
+        )
+        return bool(result.rowcount)
+
     async def count_invoices_for_run(self, run_id: int) -> int:
         stmt = with_community_scope(
             select(func.count()).select_from(InvoiceModel), InvoiceModel
@@ -446,6 +500,7 @@ class BillingRepository:
         *,
         status: int | None = None,
         id_member: int | None = None,
+        doc_type: int | None = None,
         limit: int = 50,
         offset: int = 0,
         issued_from: datetime.date | None = None,
@@ -463,6 +518,9 @@ class BillingRepository:
         if id_member is not None:
             base = base.where(InvoiceModel.id_member == id_member)
             count_base = count_base.where(InvoiceModel.id_member == id_member)
+        if doc_type is not None:
+            base = base.where(InvoiceModel.doc_type == doc_type)
+            count_base = count_base.where(InvoiceModel.doc_type == doc_type)
         if issued_from is not None:
             base = base.where(InvoiceModel.issued_at >= issued_from)
             count_base = count_base.where(InvoiceModel.issued_at >= issued_from)
@@ -489,6 +547,7 @@ class BillingRepository:
         *,
         id_members: list[int],
         status: int | None = None,
+        doc_type: int | None = None,
         limit: int = 50,
         offset: int = 0,
         issued_from: datetime.date | None = None,
@@ -506,6 +565,9 @@ class BillingRepository:
         if status is not None:
             base = base.where(InvoiceModel.status == status)
             count_base = count_base.where(InvoiceModel.status == status)
+        if doc_type is not None:
+            base = base.where(InvoiceModel.doc_type == doc_type)
+            count_base = count_base.where(InvoiceModel.doc_type == doc_type)
         if issued_from is not None:
             base = base.where(InvoiceModel.issued_at >= issued_from)
             count_base = count_base.where(InvoiceModel.issued_at >= issued_from)

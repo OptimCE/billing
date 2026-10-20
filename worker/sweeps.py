@@ -30,7 +30,7 @@ from ports.crm_core_sqlalchemy import SqlAlchemyCrmCoreRead
 # so importing it here crash-loops the worker image on startup.
 from ports.providers import get_email_port, get_event_publisher
 from regime.registry import get_registry
-from shared.const import InvoiceStatus
+from shared.const import InvoiceStatus, InvoiceType
 from shared.models.local_models import InvoiceModel
 from worker.context import with_tenant
 
@@ -49,6 +49,10 @@ async def _communities_with_overdue_invoices_unscoped(
 ) -> list[int]:
     """Which communities have an invoice the sweep would flip.
 
+    Mirrors the WHERE of `BillingRepository.sweep_overdue`, consumer INVOICEs
+    only, so a community whose only past-due documents are producer statements
+    is not swept for nothing.
+
     **Deliberately unscoped**, hence the name. Every other owned-DB read goes
     through `with_community_scope`, which filters on the
     `current_internal_community_id` ContextVar — but a scheduler has no request
@@ -58,6 +62,7 @@ async def _communities_with_overdue_invoices_unscoped(
     stmt = (
         select(InvoiceModel.id_community)
         .where(
+            InvoiceModel.doc_type == InvoiceType.INVOICE,
             InvoiceModel.status.in_([InvoiceStatus.ISSUED, InvoiceStatus.SENT]),
             InvoiceModel.due_date < today,
         )
