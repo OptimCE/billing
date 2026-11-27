@@ -47,6 +47,7 @@ module = [
     "factory.*",
     "asyncpg.*",
     "botocore.*",
+    "jsonschema.*",
     "pandas",
     "pandas.*",
 ]

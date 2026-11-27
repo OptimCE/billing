@@ -8,6 +8,7 @@ Exposed surface:
 - ``upload(key, content, content_type=None)`` — put_object
 - ``download(key) -> bytes`` — get_object
 - ``delete(key)`` — best-effort delete_object
+- ``size(key, bucket) -> int | None`` — head_object, None when absent (the data export)
 - ``ObjectNotFound`` — raised by ``download`` when the key does not exist
 - ``TransientStorageError`` — raised by ``download`` for retryable errors
 """
@@ -17,6 +18,7 @@ from core.storage.client import (
     TransientStorageError,
     delete,
     download,
+    size,
     upload,
 )
 
@@ -25,5 +27,6 @@ __all__ = [
     "TransientStorageError",
     "delete",
     "download",
+    "size",
     "upload",
 ]

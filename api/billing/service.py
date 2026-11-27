@@ -509,7 +509,7 @@ class BillingService:
             id_community=cid,
         )
         await self._crm.commit()
-        return await self.get_invoice(invoice_id=invoice_id)
+        return await self._invoice_out(invoice_id)
 
     async def register_payment(self, *, invoice_id: int, body: PaymentIn) -> InvoiceOut:
         cid = self._community()
@@ -563,12 +563,13 @@ class BillingService:
                 id_community=cid,
             )
         await self._crm.commit()
-        return await self.get_invoice(invoice_id=invoice_id)
+        return await self._invoice_out(invoice_id)
 
     async def list_payments(self, *, invoice_id: int) -> list[PaymentOut]:
         invoice = await self._repo.get_invoice(invoice_id)
         if invoice is None:
             raise ErrorException(errors.billing.INVOICE_NOT_FOUND, status_code=404)
+        await self._authorize_invoice_read(invoice)
         payments = await self._repo.list_payments(invoice_id)
         return [mappers.payment_to_out(payment) for payment in payments]
 
@@ -699,6 +700,24 @@ class BillingService:
             return False
         return ROLE_HIERARCHY.get(role, 0) >= ROLE_HIERARCHY[Role.MANAGER]
 
+    async def _authorize_invoice_read(self, invoice: InvoiceModel) -> None:
+        """Let a manager read any invoice of the community, a plain member only their own.
+
+        "Their own" means the invoice's ``id_member`` is one of the member records the
+        caller is linked to in the CRM. Someone else's invoice is a 403, not a 404,
+        the same as the PDF download has always answered. Call it after the 404.
+        """
+        if self._is_manager():
+            return
+        auth_user_id = current_user_id.get()
+        if not auth_user_id:
+            raise ErrorException(errors.auth.UNAUTHORIZED, status_code=401)
+        member_ids = await self._crm_read.member_ids_for_user(
+            id_community=self._community(), auth_user_id=auth_user_id
+        )
+        if invoice.id_member not in member_ids:
+            raise ErrorException(errors.auth.FORBIDDEN, status_code=403)
+
     def _pdf_filename(self, invoice: InvoiceModel) -> str:
         """Human-friendly download name; DRAFT (no number) → proforma."""
         if invoice.number:
@@ -762,20 +781,10 @@ class BillingService:
         Managers may fetch any invoice in the community; a plain member may only
         fetch a PDF of an invoice belonging to one of their own member records.
         """
-        cid = self._community()
         invoice = await self._repo.get_invoice(invoice_id)
         if invoice is None:
             raise ErrorException(errors.billing.INVOICE_NOT_FOUND, status_code=404)
-
-        if not self._is_manager():
-            auth_user_id = current_user_id.get()
-            if not auth_user_id:
-                raise ErrorException(errors.auth.UNAUTHORIZED, status_code=401)
-            member_ids = await self._crm_read.member_ids_for_user(
-                id_community=cid, auth_user_id=auth_user_id
-            )
-            if invoice.id_member not in member_ids:
-                raise ErrorException(errors.auth.FORBIDDEN, status_code=403)
+        await self._authorize_invoice_read(invoice)
 
         if not invoice.artifact_uri:
             raise ErrorException(errors.billing.INVOICE_PDF_NOT_READY, status_code=422)
@@ -860,6 +869,21 @@ class BillingService:
         return [mappers.invoice_to_out(inv) for inv in invoices]
 
     async def get_invoice(self, *, invoice_id: int) -> InvoiceOut:
+        """One invoice with its lines, for a manager or the member it belongs to."""
+        invoice = await self._repo.get_invoice(invoice_id)
+        if invoice is None:
+            raise ErrorException(errors.billing.INVOICE_NOT_FOUND, status_code=404)
+        await self._authorize_invoice_read(invoice)
+        lines = await self._repo.get_invoice_lines(invoice_id)
+        return mappers.invoice_to_out(invoice, lines=lines)
+
+    async def _invoice_out(self, invoice_id: int) -> InvoiceOut:
+        """Re-read an invoice its own write flow has just changed, with no read check.
+
+        ``send_invoice`` and ``register_payment`` return the updated invoice. Their
+        routes are manager-only, so the caller may already change it. A read check
+        here would run only AFTER the write was committed, where refusing is too late.
+        """
         invoice = await self._repo.get_invoice(invoice_id)
         if invoice is None:
             raise ErrorException(errors.billing.INVOICE_NOT_FOUND, status_code=404)
