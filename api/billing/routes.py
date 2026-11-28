@@ -3,6 +3,7 @@
 Every route is gated by ``resolve_internal_community`` (caches the internal
 community id in a ContextVar) + ``require_feature(BILLING)`` and wrapped by
 ``with_default_error`` so an unexpected failure surfaces as a domain error.
+All but the member's own reads also need MANAGER or above (``_MANAGER_ONLY``).
 Tariff/invoice/credit-note write flows beyond run creation land in Phase 5-6.
 
 NOTE: this module intentionally does NOT `from __future__ import annotations`.
@@ -47,9 +48,16 @@ billing_routes = APIRouter(
     ]
 )
 
+# Everything here is manager-only EXCEPT the four routes a plain member uses:
+# GET /invoices/mine, and one invoice's detail, payments and PDF (the service lets a
+# member read only their own). The UI hiding a screen is not a gate: without this a
+# member could list every invoice, issue them or register payments through the API.
+# tests/billing/test_route_role_gates.py fails on any new route that is in neither set.
+_MANAGER_ONLY = [Depends(require_min_role(Role.MANAGER))]
+
 
 # ---- tariffs ---------------------------------------------------------------
-@billing_routes.post("/sharing-operations/{operation_id}/tariffs")
+@billing_routes.post("/sharing-operations/{operation_id}/tariffs", dependencies=_MANAGER_ONLY)
 @with_default_error(errors.billing.CREATE_TARIFF)
 async def create_tariff(
     operation_id: int,
@@ -60,7 +68,7 @@ async def create_tariff(
     return ApiResponse(data=tariff)
 
 
-@billing_routes.get("/sharing-operations/{operation_id}/tariffs")
+@billing_routes.get("/sharing-operations/{operation_id}/tariffs", dependencies=_MANAGER_ONLY)
 @with_default_error(errors.billing.GET_TARIFFS)
 async def list_tariffs(
     operation_id: int,
@@ -70,7 +78,7 @@ async def list_tariffs(
     return ApiResponse(data=tariffs)
 
 
-@billing_routes.delete("/tariffs/{tariff_id}")
+@billing_routes.delete("/tariffs/{tariff_id}", dependencies=_MANAGER_ONLY)
 @with_default_error(errors.billing.DELETE_TARIFF)
 async def delete_tariff(
     tariff_id: int,
@@ -81,7 +89,7 @@ async def delete_tariff(
 
 
 # ---- billing runs ----------------------------------------------------------
-@billing_routes.post("/sharing-operations/{operation_id}/billing-runs")
+@billing_routes.post("/sharing-operations/{operation_id}/billing-runs", dependencies=_MANAGER_ONLY)
 @with_default_error(errors.billing.START_BILLING_RUN)
 async def create_billing_run(
     operation_id: int,
@@ -92,7 +100,7 @@ async def create_billing_run(
     return ApiResponse(data=run)
 
 
-@billing_routes.get("/sharing-operations/{operation_id}/billing-runs")
+@billing_routes.get("/sharing-operations/{operation_id}/billing-runs", dependencies=_MANAGER_ONLY)
 @with_default_error(errors.billing.GET_BILLING_RUNS)
 async def list_billing_runs(
     operation_id: int,
@@ -102,7 +110,7 @@ async def list_billing_runs(
     return ApiResponse(data=runs)
 
 
-@billing_routes.get("/billing-runs/{run_id}")
+@billing_routes.get("/billing-runs/{run_id}", dependencies=_MANAGER_ONLY)
 @with_default_error(errors.billing.GET_BILLING_RUNS)
 async def get_billing_run(
     run_id: int,
@@ -112,7 +120,7 @@ async def get_billing_run(
     return ApiResponse(data=run)
 
 
-@billing_routes.get("/billing-runs/{run_id}/invoices")
+@billing_routes.get("/billing-runs/{run_id}/invoices", dependencies=_MANAGER_ONLY)
 @with_default_error(errors.billing.GET_INVOICES)
 async def get_billing_run_invoices(
     run_id: int,
@@ -122,7 +130,7 @@ async def get_billing_run_invoices(
     return ApiResponse(data=invoices)
 
 
-@billing_routes.post("/billing-runs/overdue-sweep")
+@billing_routes.post("/billing-runs/overdue-sweep", dependencies=_MANAGER_ONLY)
 @with_default_error(errors.billing.GET_BILLING_RUNS)
 async def overdue_sweep(
     service: BillingService = Depends(get_billing_service),
@@ -163,6 +171,8 @@ async def list_my_invoices(
     )
 
 
+# This read and its payments below: a manager gets any invoice of the community, a
+# plain member only their own (authorised in the service, like the PDF download).
 @billing_routes.get("/invoices/{invoice_id}")
 @with_default_error(errors.billing.GET_INVOICES)
 async def get_invoice(
@@ -173,7 +183,7 @@ async def get_invoice(
     return ApiResponse(data=invoice)
 
 
-@billing_routes.post("/invoices/{invoice_id}/issue")
+@billing_routes.post("/invoices/{invoice_id}/issue", dependencies=_MANAGER_ONLY)
 @with_default_error(errors.billing.ISSUE_INVOICE)
 async def issue_invoice(
     invoice_id: int,
@@ -183,7 +193,7 @@ async def issue_invoice(
     return ApiResponse(data=result)
 
 
-@billing_routes.post("/invoices/{invoice_id}/send")
+@billing_routes.post("/invoices/{invoice_id}/send", dependencies=_MANAGER_ONLY)
 @with_default_error(errors.billing.INVOICE_NOT_ISSUED)
 async def send_invoice(
     invoice_id: int,
@@ -192,7 +202,7 @@ async def send_invoice(
     return ApiResponse(data=await service.send_invoice(invoice_id=invoice_id))
 
 
-@billing_routes.post("/invoices/{invoice_id}/payments")
+@billing_routes.post("/invoices/{invoice_id}/payments", dependencies=_MANAGER_ONLY)
 @with_default_error(errors.billing.REGISTER_PAYMENT)
 async def register_payment(
     invoice_id: int,
@@ -211,7 +221,7 @@ async def list_payments(
     return ApiResponse(data=await service.list_payments(invoice_id=invoice_id))
 
 
-@billing_routes.post("/invoices/{invoice_id}/credit-note")
+@billing_routes.post("/invoices/{invoice_id}/credit-note", dependencies=_MANAGER_ONLY)
 @with_default_error(errors.billing.CREDIT_NOTE_TARGET_INVALID)
 async def create_credit_note(
     invoice_id: int,
@@ -226,7 +236,7 @@ async def create_credit_note(
 # invoice's ``pdf_ready`` until the render lands. Manager-only.
 @billing_routes.post(
     "/invoices/{invoice_id}/pdf",
-    dependencies=[Depends(require_min_role(Role.MANAGER))],
+    dependencies=_MANAGER_ONLY,
 )
 @with_default_error(errors.billing.ISSUE_INVOICE)
 async def generate_invoice_pdf(
@@ -263,7 +273,7 @@ async def download_invoice_pdf(
 # Blocked once the invoice has been sent. Manager-only.
 @billing_routes.delete(
     "/invoices/{invoice_id}/pdf",
-    dependencies=[Depends(require_min_role(Role.MANAGER))],
+    dependencies=_MANAGER_ONLY,
 )
 @with_default_error(errors.billing.INVOICE_PDF_DELETE_FORBIDDEN)
 async def delete_invoice_pdf(
@@ -274,7 +284,7 @@ async def delete_invoice_pdf(
     return ApiResponse(data=True)
 
 
-@billing_routes.get("/invoices")
+@billing_routes.get("/invoices", dependencies=_MANAGER_ONLY)
 @with_default_error(errors.billing.GET_INVOICES)
 async def list_invoices(
     service: BillingService = Depends(get_billing_service),
